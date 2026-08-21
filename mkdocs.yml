@@ -1,6 +1,10 @@
 site_name: ILS Risk Conformance Suite
 site_description: A language-neutral specification and test corpus for ILS risk calculations
-repo_url: https://github.com/OWNER/ils-conformance
+repo_url: https://github.com/quafadas/Risk-Book
+# Required for canonical links and a non-empty sitemap.xml. For a GitHub Pages
+# project site this is https://<owner>.github.io/<repo>/ -- the trailing slash
+# matters. Replace OWNER here, in repo_url, and in the README badge together.
+site_url: https://quafadas.github.io/Risk-Book/
 edit_uri: edit/main/
 
 theme:

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/OWNER/ils-conformance/conformance/schema/case.schema.json",
+  "$id": "https://github.com/quafadas/Risk-Book/conformance/schema/case.schema.json",
   "title": "ILS conformance case",
   "type": "object",
   "required": ["id", "spec", "since", "rationale", "input", "operation", "expected", "tolerance"],

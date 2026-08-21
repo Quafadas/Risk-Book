@@ -155,20 +155,43 @@ jobs:
     needs: [check-malformed-corpus, python, scala, julia, LibreOffice]
     if: always() && needs.check-malformed-corpus.result == 'success'
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v4
-        with: { fetch-depth: 0 }
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
+      # Every implementation's envelope, merged into one directory.
       - uses: actions/download-artifact@v4
         with: { path: artifacts, merge-multiple: true }
       - name: Generate scorecard
         run: python tools/scorecard.py --results-dir artifacts
       - run: pip install --quiet mkdocs-material
+      # Builds on every push and pull request, so a broken docs tree fails the
+      # PR rather than only being noticed at deploy time. --strict turns
+      # warnings (dead nav entries, missing links) into errors.
       - name: Build
         run: mkdocs build --strict
-      - name: Publish
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        run: mkdocs gh-deploy --force
+      # Packages site/ as the `github-pages` artifact for the deploy job.
+      - uses: actions/upload-pages-artifact@v3
+        with: { path: site }
+
+  # Deployment is a separate job so it can hold the narrow permissions Pages
+  # needs, and so `docs` stays runnable on pull requests from forks.
+  # Requires Settings -> Pages -> Source = "GitHub Actions".
+  publish:
+    needs: docs
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write        # create a Pages deployment
+      id-token: write     # OIDC token deploy-pages exchanges for one
+    # Not the workflow-wide group: that one cancels in progress, and a
+    # cancelled deployment can leave the site half-updated.
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4
