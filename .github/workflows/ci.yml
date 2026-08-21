@@ -52,7 +52,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: coursier/cache-action@v7
-        with: { cache: "mill", extraFiles: "impl/scala/build.mill" }
+        with: { extraMillFiles: "impl/scala/build.mill" }
       - uses: coursier/setup-action@v3
         with:
           # Quoted and in block style: a plain scalar containing a colon inside
