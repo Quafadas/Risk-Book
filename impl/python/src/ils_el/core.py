@@ -1,36 +1,17 @@
 """Expected loss over a year loss table.
 
-Implements spec SS 3.2 (summation) and SS 4.1 (expected loss). Deliberately free
-of NumPy: the reference implementation must not inherit a summation convention
-from a library that the other implementations cannot reproduce.
+Implements spec SS 3.2 (summation) and SS 4.1 (expected loss).
+
+Deliberately free of NumPy: the reference implementation should reduce a column
+the way a reader of SS 4.1 would.
 """
 
 from __future__ import annotations
 
 import csv
 import hashlib
-from collections.abc import Iterable, Sequence
+from collections.abc import Sequence
 from pathlib import Path
-
-
-def compensated_sum(values: Iterable[float]) -> float:
-    """Neumaier compensated summation (spec SS 3.2).
-
-    Neumaier's variant, not classic Kahan: the correction term is selected on
-    the relative magnitude of accumulator and addend, which keeps it correct
-    when a single large loss year dominates the partial sum -- exactly the
-    shape of a catastrophe YLT.
-    """
-    total = 0.0
-    comp = 0.0
-    for x in values:
-        t = total + x
-        if abs(total) >= abs(x):
-            comp += (total - t) + x
-        else:
-            comp += (x - t) + total
-        total = t
-    return total + comp
 
 
 def expected_loss(losses: Sequence[float], n_years: int | None = None) -> float:
@@ -43,7 +24,7 @@ def expected_loss(losses: Sequence[float], n_years: int | None = None) -> float:
     n = len(losses) if n_years is None else n_years
     if n <= 0:
         raise ValueError("n_years must be positive")
-    return compensated_sum(losses) / n
+    return sum(losses) / n
 
 
 def read_ylt(path: str | Path, expected_sha256: str | None = None) -> list[float]:

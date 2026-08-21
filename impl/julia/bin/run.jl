@@ -3,7 +3,6 @@
 
 using ILSEL
 using JSON3
-using Printf
 
 const ROOT = normpath(joinpath(@__DIR__, "..", "..", ".."))
 
@@ -17,13 +16,11 @@ results = map(paths) do p
     c = JSON3.read(read(p, String))
     losses = read_ylt(joinpath(ROOT, "conformance", c.input.file);
                       expected_sha256 = c.input.sha256)
-    v = expected_loss(losses, c.operation.n_years)
     Dict(
         "case" => c.id,
         "impl" => "julia",
         "spec_version" => "1.0",
-        "value" => v,
-        "binary64_hex" => @sprintf("%a", v),
+        "value" => expected_loss(losses, c.operation.n_years),
     )
 end
 

@@ -12,7 +12,7 @@ import json
 import re
 import sys
 import tomllib
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -22,20 +22,20 @@ MANIFEST = ROOT / "conformance" / "manifest.toml"
 
 
 def spec_sections() -> set[str]:
-    text = SPEC.read_text()
+    text = SPEC.read_text(encoding="utf-8")
     return set(re.findall(r"^###?\s+(\d+(?:\.\d+)?)\s", text, re.MULTILINE))
 
 
 def main() -> int:
     errors: list[str] = []
     sections = spec_sections()
-    manifest = tomllib.loads(MANIFEST.read_text())
+    manifest = tomllib.loads(MANIFEST.read_text(encoding="utf-8"))
     declared = set(manifest.get("cases", {}))
     found: set[str] = set()
     cited: set[str] = set()
 
     for path in sorted(CASES.rglob("*.json")):
-        case = json.loads(path.read_text())
+        case = json.loads(path.read_text(encoding="utf-8"))
         cid = case["id"]
         found.add(cid)
         cited.add(case["spec"])
@@ -51,14 +51,22 @@ def main() -> int:
             actual = hashlib.sha256(data.read_bytes()).hexdigest()
             if actual != case["input"]["sha256"]:
                 errors.append(f"{cid}: digest mismatch on {case['input']['file']}")
-            rows = len(data.read_text().splitlines()) - 1
+            rows = len(data.read_text(encoding="utf-8").splitlines()) - 1
             if rows != case["input"]["rows"]:
                 errors.append(f"{cid}: declares {case['input']['rows']} rows, file has {rows}")
 
-        # The two golden forms must denote the same number (spec SS 6.1).
-        if float(Decimal(case["expected"]["exact_decimal"])) != \
-                float.fromhex(case["expected"]["binary64_hex"]):
-            errors.append(f"{cid}: exact_decimal and binary64_hex disagree")
+        # The golden value must be a finite decimal number (spec SS 6.1).
+        try:
+            golden = Decimal(case["expected"]["exact_decimal"])
+        except InvalidOperation:
+            errors.append(f"{cid}: exact_decimal is not a decimal number")
+        else:
+            if not golden.is_finite():
+                errors.append(f"{cid}: exact_decimal is not finite")
+
+        # A tolerance that admits everything tests nothing (spec SS 6.1).
+        if not 0 < case["tolerance"]["rel"] < 1e-3:
+            errors.append(f"{cid}: tolerance.rel {case['tolerance']['rel']} outside (0, 1e-3)")
 
         if case["spec"] not in sections:
             errors.append(f"{cid}: cites spec SS {case['spec']}, which does not exist")

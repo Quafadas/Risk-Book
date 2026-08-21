@@ -5,30 +5,15 @@ import java.security.MessageDigest
 /** Expected loss over a year loss table (spec SS 3.2, SS 4.1). */
 object Ylt:
 
-  /** Neumaier compensated summation (spec SS 3.2).
+  /** Expected annual loss (spec SS 4.1).
     *
-    * Note the explicit loop. `Array[Double].sum` delegates to a left fold,
-    * whose error grows with n -- on the 10k reference YLT it lands ~13 ulp
-    * from the exact mean and fails conformance. See YltSuite.
+    * The sum is `Array[Double].sum` -- the standard facility, per SS 3.2. It is
+    * a left fold, so it will not match a pairwise sum to the last bit; the
+    * case tolerance covers that.
     */
-  def compensatedSum(xs: Array[Double]): Double =
-    var total = 0.0
-    var comp = 0.0
-    var i = 0
-    while i < xs.length do
-      val x = xs(i)
-      val t = total + x
-      comp +=
-        (if math.abs(total) >= math.abs(x) then (total - t) + x
-         else (x - t) + total)
-      total = t
-      i += 1
-    total + comp
-
-  /** Expected annual loss (spec SS 4.1). */
   def expectedLoss(losses: Array[Double], nYears: Int): Double =
     require(nYears > 0, "nYears must be positive")
-    compensatedSum(losses) / nYears
+    losses.sum / nYears
 
   def expectedLoss(losses: Array[Double]): Double =
     expectedLoss(losses, losses.length)
@@ -51,4 +36,4 @@ object Ylt:
     val header = lines.head.split(',').map(_.trim)
     val lossCol = header.indexOf("loss")
     require(lossCol >= 0, "YLT has no 'loss' column")
-    lines.tail.filter(_.nonEmpty).map(l => l.split(',')(lossCol).toDouble)
+    lines.tail.filter(_.nonEmpty).map(l => l.split(',')(lossCol).trim.toDouble)

@@ -37,25 +37,22 @@
     },
     "expected": {
       "type": "object",
-      "required": ["exact_decimal", "binary64_hex"],
+      "required": ["exact_decimal"],
+      "additionalProperties": false,
       "properties": {
-        "exact_decimal": { "type": "string" },
-        "binary64_hex": { "type": "string", "pattern": "^-?0x1\\.[0-9a-f]+p[+-][0-9]+$|^0x0\\.0p\\+0$" },
-        "binary64_repr": { "type": "string" }
+        "exact_decimal": { "type": "string", "description": "The mathematically exact result, as decimal text (spec 6.1)" }
       }
     },
     "tolerance": {
       "type": "object",
-      "description": "Tolerance lives here, never in an implementation's test code (spec 6.2)",
+      "description": "Tolerance lives here, never in an implementation's test code (spec 6.1)",
+      "required": ["rel"],
+      "additionalProperties": false,
       "properties": {
-        "compensated": {
-          "type": "object",
-          "required": ["ulp"],
-          "properties": { "ulp": { "type": "number", "minimum": 0 } }
-        },
-        "loose": {
-          "type": "object",
-          "properties": { "rel": { "type": "number" }, "abs": { "type": "number" } }
+        "rel": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Maximum permitted |actual - expected| / |expected|. Wide enough to cover one standard summation versus another, narrow enough to catch a real error."
         }
       }
     }

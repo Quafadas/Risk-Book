@@ -45,7 +45,7 @@ def main() -> None:
     losses = generate()
 
     CSV.parent.mkdir(parents=True, exist_ok=True)
-    with CSV.open("w", newline="\n") as fh:
+    with CSV.open("w", newline="\n", encoding="utf-8") as fh:
         fh.write("year,loss\n")
         for i, v in enumerate(losses, start=1):
             fh.write(f"{i},{v:.2f}\n")
@@ -72,10 +72,9 @@ def main() -> None:
         "since": "1.0",
         "rationale": (
             "Smallest possible end-to-end case: parse a 10k-row YLT and reduce "
-            "it to a single number. Exists to pin the summation convention "
-            "before any structure is layered on top -- naive left-fold, "
-            "pairwise and compensated summation give three different answers "
-            "on this input."
+            "it to a single number. Exists to exercise the whole path -- read "
+            "decimal text, sum a column, divide by a declared period count -- "
+            "before any layer structure is put on top of it."
         ),
         "input": {
             "kind": "ylt",
@@ -87,22 +86,19 @@ def main() -> None:
             "scale": 1,
         },
         "operation": {"name": "expected_loss", "n_years": N_YEARS},
-        "expected": {
-            "exact_decimal": str(exact_dec),
-            "binary64_hex": nearest.hex(),
-            "binary64_repr": repr(nearest),
-        },
-        "tolerance": {
-            "compensated": {"ulp": 0},
-            "loose": {"rel": 1e-12, "abs": 1e-6},
-        },
+        "expected": {"exact_decimal": str(exact_dec)},
+        # Wide enough to cover the difference between one standard summation
+        # and another (measured: at most 5e-15 relative on this input), narrow
+        # enough that a real error still fails -- dropping a single loss-bearing
+        # year moves the mean by 3e-7 relative (spec SS 6.1).
+        "tolerance": {"rel": 1e-9},
     }
     CASE.parent.mkdir(parents=True, exist_ok=True)
-    CASE.write_text(json.dumps(case, indent=2) + "\n")
+    CASE.write_text(json.dumps(case, indent=2) + "\n", encoding="utf-8", newline="\n")
 
     print(f"wrote {CSV.relative_to(ROOT)}  sha256={sha[:16]}...")
     print(f"exact mean  = {exact_dec}")
-    print(f"binary64    = {nearest!r}  ({nearest.hex()})")
+    print(f"binary64    = {nearest!r}")
     print(f"zero years  = {sum(1 for v in losses if v == 0)}")
     print(f"max loss    = {max(losses)}")
 

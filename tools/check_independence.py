@@ -24,8 +24,8 @@ FORBIDDEN = re.compile(
 def main() -> int:
     failures: list[str] = []
     for path in sorted((IMPL / "excel").rglob("*.py")):
-        for m in FORBIDDEN.finditer(path.read_text()):
-            line = path.read_text()[: m.start()].count("\n") + 1
+        for m in FORBIDDEN.finditer(path.read_text(encoding="utf-8")):
+            line = path.read_text(encoding="utf-8")[: m.start()].count("\n") + 1
             failures.append(f"{path.relative_to(ROOT)}:{line}: {m.group(0).strip()}")
 
     if failures:

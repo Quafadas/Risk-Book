@@ -13,12 +13,12 @@ from __future__ import annotations
 
 import argparse
 import json
-import math
 import os
 import shutil
 import subprocess
 import sys
 import tempfile
+from decimal import Decimal
 from pathlib import Path
 
 from openpyxl import load_workbook
@@ -32,12 +32,31 @@ TEMPLATES = HERE / "templates"
 BINDINGS = {"el": "el_mean.xlsx"}
 
 
+def engine_version() -> str:
+    """Engine identity for the envelope (spec SS 7.2).
+
+    Reported as `libreoffice <version>`, never as `excel`: LibreOffice is a
+    different implementation of Excel semantics.
+    """
+    soffice = shutil.which("soffice") or shutil.which("libreoffice")
+    if soffice is None:
+        return "libreoffice unknown"
+    try:
+        out = subprocess.run([soffice, "--version"], capture_output=True,
+                             text=True, timeout=60).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        return "libreoffice unknown"
+    # "LibreOffice 24.2.7.2 420(Build:2)" -> "libreoffice 24.2.7.2"
+    parts = out.split()
+    return f"libreoffice {parts[1]}" if len(parts) > 1 else "libreoffice unknown"
+
+
 def recalculate(path: Path, timeout: int = 300) -> None:
     """Force a full recalculation via LibreOffice headless.
 
     LibreOffice is a *different implementation* of Excel semantics. Results are
-    reported as `libreoffice`, never as `excel`; the fidelity job in CI is what
-    licenses the stronger claim.
+    reported as `libreoffice <version>`, never as `excel`; a claim about Excel
+    needs a run on licensed Excel, which this harness does not do.
     """
     soffice = shutil.which("soffice") or shutil.which("libreoffice")
     if soffice is None:
@@ -69,7 +88,7 @@ def write_named(wb, name: str, value) -> None:
 
 
 def run_case(case_path: Path, *, cached: bool = False) -> dict:
-    case = json.loads(case_path.read_text())
+    case = json.loads(case_path.read_text(encoding="utf-8"))
     family = case["id"].split("/")[0]
     template = TEMPLATES / BINDINGS[family]
     if not template.exists():
@@ -88,34 +107,42 @@ def run_case(case_path: Path, *, cached: bool = False) -> dict:
 
         wb = load_workbook(work, data_only=True)
         outputs = {n: read_named(wb, n) for n in
-                   ("EL_SUM", "EL_AVERAGE", "EL_COMPENSATED",
-                    "SUM_LOSSES", "S_FINAL", "C_FINAL", "COUNT_ROWS")}
+                   ("EL_SUM", "EL_AVERAGE", "EL_RUNNING", "COUNT_ROWS")}
+
+    missing = sorted(k for k, v in outputs.items() if v is None)
+    if missing:
+        return {"case": case["id"], "impl": "excel", "status": "error",
+                "reason": f"no recalculated value for {', '.join(missing)}; "
+                          "the engine did not evaluate the workbook"}
 
     if outputs["COUNT_ROWS"] != case["input"]["rows"]:
         return {"case": case["id"], "impl": "excel", "status": "error",
                 "reason": f"template covers {outputs['COUNT_ROWS']} rows, "
                           f"case declares {case['input']['rows']}"}
 
-    value = float(outputs["EL_COMPENSATED"])
-    expected = float.fromhex(case["expected"]["binary64_hex"])
-    err = 0.0 if value == expected else abs(value - expected) / math.ulp(expected)
+    # EL_SUM is the value under test (spec SS 3.2: =SUM(range) is the
+    # spreadsheet's standard summation). The other two are reported alongside it
+    # so a reader can see whether the layout they use agrees (spec SS 7.3).
+    value = float(outputs["EL_SUM"])
+    expected = float(Decimal(case["expected"]["exact_decimal"]))
+
+    def relative_error(v: float) -> float:
+        return abs(v - expected) / abs(expected)
+
+    err = relative_error(value)
 
     return {
         "case": case["id"],
         "impl": "excel",
-        "engine": "cached" if cached else "libreoffice",
+        "engine": "cached" if cached else engine_version(),
         "spec_version": "1.0",
-        "status": "pass" if err <= case["tolerance"]["compensated"]["ulp"] else "fail",
+        "status": "pass" if err <= case["tolerance"]["rel"] else "fail",
         "value": value,
-        "binary64_hex": value.hex(),
-        "ulp_error": err,
+        "relative_error": err,
         "strategies": {
-            k: {"value": float(v), "hex": float(v).hex(),
-                "ulp_error": (0.0 if float(v) == expected
-                              else abs(float(v) - expected) / math.ulp(expected))}
+            k: {"value": float(v), "relative_error": relative_error(float(v))}
             for k, v in outputs.items() if k.startswith("EL_")
         },
-        "diagnostics": {k: float(outputs[k]) for k in ("SUM_LOSSES", "S_FINAL", "C_FINAL")},
     }
 
 

@@ -19,9 +19,8 @@ nav:
   - Specification: spec.md
   - Results: results.md
   - Glossary: glossary.md
-  - Decisions:
-      - ADR-0001 Summation convention: adr/0001-summation.md
-      - ADR-0002 Quantile convention: adr/0002-quantiles.md
+  - Specs:
+      - Expected loss: specs/ExpectedLoss.md
   - Contributing: contributing.md
 
 markdown_extensions:
@@ -30,6 +29,12 @@ markdown_extensions:
   - toc: { permalink: true }
   - pymdownx.superfences
   - pymdownx.highlight
+  # Renders the $$...$$ blocks in docs/specs/. Ships with mkdocs-material.
+  - pymdownx.arithmatex: { generic: true }
+
+extra_javascript:
+  - javascripts/mathjax.js
+  - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
 
 plugins:
   - search

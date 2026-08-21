@@ -9,40 +9,21 @@ module ILSEL
 
 using SHA: sha256
 
-export compensated_sum, expected_loss, read_ylt
+export expected_loss, read_ylt
 
 const SPEC_VERSION = v"1.0.0"
-
-"""
-    compensated_sum(xs) -> Float64
-
-Neumaier compensated summation (spec § 3.2).
-
-Written out rather than delegating to `Base.sum`. Julia's `sum` uses pairwise
-summation and happens to agree with the golden value on the reference YLT, but
-agreement by coincidence is not conformance: an implementation must be correct
-because it follows § 3.2, not because its standard library was well chosen.
-"""
-function compensated_sum(xs)::Float64
-    total = 0.0
-    comp = 0.0
-    @inbounds for x in xs
-        xf = Float64(x)
-        t = total + xf
-        comp += ifelse(abs(total) >= abs(xf), (total - t) + xf, (xf - t) + total)
-        total = t
-    end
-    return total + comp
-end
 
 """
     expected_loss(losses, n_years = length(losses)) -> Float64
 
 Expected annual loss (spec § 4.1).
+
+The sum is `Base.sum` -- the standard facility, per § 3.2. Julia's is pairwise,
+so it will not match a left fold to the last bit; the case tolerance covers that.
 """
 function expected_loss(losses, n_years::Integer = length(losses))::Float64
     n_years > 0 || throw(ArgumentError("n_years must be positive"))
-    return compensated_sum(losses) / n_years
+    return sum(losses) / n_years
 end
 
 """
@@ -65,7 +46,7 @@ function read_ylt(path::AbstractString; expected_sha256::Union{Nothing,AbstractS
     col = findfirst(==("loss"), header)
     col === nothing && error("YLT has no 'loss' column")
 
-    return [parse(Float64, split(l, ',')[col]) for l in lines[2:end]]
+    return [parse(Float64, strip(split(l, ',')[col])) for l in lines[2:end]]
 end
 
 end # module

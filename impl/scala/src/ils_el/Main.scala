@@ -13,13 +13,11 @@ object Main:
     val results = paths.map: p =>
       val c = Case.load(p)
       val losses = Ylt.readYlt(root / "conformance" / c.input.file, Some(c.input.sha256))
-      val v = Ylt.expectedLoss(losses, c.operation.n_years)
       ujson.Obj(
         "case" -> c.id,
         "impl" -> "scala",
         "spec_version" -> "1.0",
-        "value" -> v,
-        "binary64_hex" -> java.lang.Double.toHexString(v)
+        "value" -> Ylt.expectedLoss(losses, c.operation.n_years)
       )
 
     println(write(ujson.Arr(results*), indent = 2))

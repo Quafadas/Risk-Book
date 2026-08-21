@@ -14,16 +14,15 @@ def main() -> int:
     ap.add_argument("case", type=Path, help="path to a conformance case JSON")
     args = ap.parse_args()
 
-    case = json.loads(args.case.read_text())
+    case = json.loads(args.case.read_text(encoding="utf-8"))
     root = args.case.resolve().parents[2]
     losses = read_ylt(root / case["input"]["file"], case["input"]["sha256"])
     value = expected_loss(losses, case["operation"]["n_years"])
 
-    print(json.dumps({
+    print(json.dumps([{
         "case": case["id"],
         "impl": "python",
         "spec_version": "1.0",
         "value": value,
-        "binary64_hex": value.hex(),
-    }))
+    }], indent=2))
     return 0

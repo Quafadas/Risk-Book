@@ -129,8 +129,14 @@ jobs:
   #     - uses: actions/upload-artifact@v4
   #       with: { name: results-excel-com, path: results-excel-com.json }
 
+  # The scorecard reports whatever came back, so this runs even when an
+  # implementation fails -- but not when the corpus gate failed, because then
+  # every measurement is against a corpus we know is malformed.
+  # check-malformed-corpus must be listed in `needs`: the `needs` context only
+  # carries direct dependencies, and referencing an absent one yields null,
+  # which would make this condition false forever.
   docs:
-    needs: [python, scala, julia, LibreOffice]
+    needs: [check-malformed-corpus, python, scala, julia, LibreOffice]
     if: always() && needs.check-malformed-corpus.result == 'success'
     runs-on: ubuntu-latest
     permissions:

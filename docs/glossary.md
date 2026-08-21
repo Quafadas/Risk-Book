@@ -47,14 +47,10 @@ period boundary.
 
 **Return period** — the reciprocal of an annual exceedance probability. A
 "1-in-250 year loss" is the loss with a 0.4% annual exceedance probability. On a
-finite simulation the value depends on the quantile convention (see ADR-0002),
-and at 10,000 years the 1-in-250 sits at index 40 — close enough to the tail
-that interpolation choices are visible.
+finite simulation the value depends on the quantile convention (spec § 3.4,
+reserved for v1.1), and at 10,000 years the 1-in-250 sits at index 40 — close
+enough to the tail that interpolation choices are visible.
 
 **Year Loss Table (YLT)** — simulated years, each carrying total loss to the
 subject portfolio. Zero-loss years are present with a loss of zero, so the row
 count equals the simulation length.
-
-**ulp** — unit in the last place: the distance between a binary64 value and the
-next representable value of greater magnitude. The natural unit for describing
-numerical divergence, because it is scale-free.

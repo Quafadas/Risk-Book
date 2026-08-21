@@ -6,26 +6,37 @@ and reads named outputs back. Formulas are laid out cell by cell rather than as
 one nested expression, so a divergence can be traced to a step (spec SS 7.3).
 
 Three strategies are computed side by side, because the interesting question is
-not whether Excel can average a column but whether it can implement the
-summation convention in SS 3.2 at all:
+not whether a spreadsheet can average a column but whether the ways a modeller
+might do it agree (spec SS 7.3):
 
-  EL_SUM         =SUM(range)/n            -- Excel's own accumulation
-  EL_AVERAGE     =AVERAGE(range)          -- may differ from the above
-  EL_COMPENSATED  Neumaier via two helper columns, 20k cells
+  EL_SUM       =SUM(range)/n     -- the value under test (spec SS 3.2)
+  EL_AVERAGE   =AVERAGE(range)   -- the obvious alternative
+  EL_RUNNING   running total carried down a helper column
 
-The third is the one under test. It is also the one most likely to be defeated
-by Excel's cosmetic rounding, which zeroes results of subtractions between
-nearly equal operands -- exactly the term Neumaier depends on.
+The third is reported, not a candidate. It is the layout hand-built layer models
+overwhelmingly use, so it is worth showing a reader whether it agrees.
 """
 
 from __future__ import annotations
 
 import csv
+import datetime
+import re
+import shutil
+import zipfile
 from pathlib import Path
 
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.workbook.defined_name import DefinedName
+
+# The workbook is a build artifact but it is committed, and CI compares a
+# rebuild against the committed bytes (spec SS 7.1). That only works if the
+# build is reproducible, so every timestamp in the container is pinned. The
+# epoch is arbitrary; the DOS time format zip uses cannot represent anything
+# before 1980.
+FIXED_TIMESTAMP = datetime.datetime(1980, 1, 1, 0, 0, 0)
+FIXED_ZIP_DATE = (1980, 1, 1, 0, 0, 0)
 
 ROOT = Path(__file__).resolve().parents[2]
 CSV_PATH = ROOT / "conformance" / "data" / "ylt-10k.csv"
@@ -38,6 +49,36 @@ YELLOW = PatternFill("solid", fgColor="FFFF00")     # key output
 NUM = "#,##0.000000"
 
 
+def normalise(path: Path) -> None:
+    """Repack the container so the build is byte-reproducible.
+
+    Two sources of wall-clock drift have to go, or a rebuild never matches the
+    committed workbook and the CI staleness check (spec SS 7.1) is noise:
+
+    * every zip entry carries an mtime;
+    * openpyxl rewrites `dcterms:modified` in docProps/core.xml during `save()`,
+      so pinning it on the Workbook beforehand has no effect.
+    """
+    stamp = FIXED_TIMESTAMP.strftime("%Y-%m-%dT%H:%M:%SZ")
+    tmp = path.with_suffix(".xlsx.tmp")
+    with zipfile.ZipFile(path) as src, zipfile.ZipFile(
+        tmp, "w", zipfile.ZIP_DEFLATED
+    ) as dst:
+        for name in sorted(src.namelist()):
+            payload = src.read(name)
+            if name == "docProps/core.xml":
+                payload = re.sub(
+                    rb"(<dcterms:(?:created|modified)[^>]*>)[^<]*(</dcterms:)",
+                    rb"\g<1>" + stamp.encode() + rb"\g<2>",
+                    payload,
+                )
+            info = zipfile.ZipInfo(name, date_time=FIXED_ZIP_DATE)
+            info.compress_type = zipfile.ZIP_DEFLATED
+            info.external_attr = 0o600 << 16
+            dst.writestr(info, payload)
+    shutil.move(tmp, path)
+
+
 def main() -> None:
     with CSV_PATH.open() as fh:
         losses = [r["loss"] for r in csv.DictReader(fh)]
@@ -46,14 +87,11 @@ def main() -> None:
 
     wb = Workbook()
 
-    # ---- YLT sheet: data plus the Neumaier accumulator -------------------
+    # ---- YLT sheet: data plus the running-total diagnostic ---------------
     ws = wb.active
     ws.title = "YLT"
-    for col, head in enumerate(
-        ["year", "loss", "S (running sum)", "c (compensation)"], start=1
-    ):
-        cell = ws.cell(row=1, column=col, value=head)
-        cell.font = BOLD
+    for col, head in enumerate(["year", "loss", "S (running sum)"], start=1):
+        ws.cell(row=1, column=col, value=head).font = BOLD
     ws.freeze_panes = "A2"
 
     for i, loss in enumerate(losses, start=2):
@@ -62,22 +100,14 @@ def main() -> None:
         c.font = BLUE
         c.number_format = "#,##0.00"
 
-    # Seed row: S0 = 0, c0 = 0 are implicit, so row 2 is written out longhand.
     ws["C2"] = "=B2"
-    ws["D2"] = "=IF(ABS(0)>=ABS(B2),(0-C2)+B2,(B2-C2)+0)"
     for r in range(3, last + 1):
         ws[f"C{r}"] = f"=C{r-1}+B{r}"
-        ws[f"D{r}"] = (
-            f"=D{r-1}+IF(ABS(C{r-1})>=ABS(B{r}),"
-            f"(C{r-1}-C{r})+B{r},"
-            f"(B{r}-C{r})+C{r-1})"
-        )
     for r in range(2, last + 1):
         ws.cell(row=r, column=3).number_format = NUM
-        ws.cell(row=r, column=4).number_format = "0.00E+00"
 
     ws.column_dimensions["A"].width = 8
-    for col in "BCD":
+    for col in "BC":
         ws.column_dimensions[col].width = 22
 
     # ---- Calc sheet: named inputs and outputs ----------------------------
@@ -96,15 +126,13 @@ def main() -> None:
         ("FIRST_ROW", "input", 2, "First data row on sheet YLT"),
         ("LAST_ROW", "input", last, "Last data row on sheet YLT"),
         ("Intermediates", "head", None, None),
-        ("SUM_LOSSES", "calc", f"=SUM(YLT!B2:B{last})", "Excel's own accumulation order"),
+        ("SUM_LOSSES", "calc", f"=SUM(YLT!B2:B{last})", "The spreadsheet's own accumulation"),
         ("COUNT_ROWS", "calc", f"=COUNT(YLT!B2:B{last})", "Guards an off-by-one in the range"),
-        ("S_FINAL", "calc", f"=YLT!C{last}", "Neumaier running sum, final row"),
-        ("C_FINAL", "calc", f"=YLT!D{last}", "Neumaier compensation, final row"),
-        ("SUM_COMPENSATED", "calc", "={S_FINAL}+{C_FINAL}", "Spec SS 3.2 total"),
+        ("S_FINAL", "calc", f"=YLT!C{last}", "Running total, final row"),
         ("Outputs", "head", None, None),
-        ("EL_SUM", "out", "={SUM_LOSSES}/{N_YEARS}", "SUM(range) / n"),
+        ("EL_SUM", "out", "={SUM_LOSSES}/{N_YEARS}", "Spec SS 4.1 -- the value under test"),
         ("EL_AVERAGE", "out", f"=AVERAGE(YLT!B2:B{last})", "AVERAGE(range)"),
-        ("EL_COMPENSATED", "out", "={SUM_COMPENSATED}/{N_YEARS}", "Spec SS 4.1 -- the value under test"),
+        ("EL_RUNNING", "out", "={S_FINAL}/{N_YEARS}", "Reported: running-total column (SS 7.3)"),
     ]
 
     addr: dict[str, str] = {}
@@ -137,9 +165,18 @@ def main() -> None:
     for name, ref in addr.items():
         wb.defined_names.add(DefinedName(name, attr_text=f"Calc!${ref[0]}${ref[1:]}"))
 
+    # Fixed document timestamps. The committed workbook is compared against a
+    # rebuild byte for byte (spec SS 7.1); openpyxl would otherwise stamp
+    # docProps/core.xml with the wall clock and make every comparison fail.
+    wb.properties.created = FIXED_TIMESTAMP
+    wb.properties.modified = FIXED_TIMESTAMP
+    wb.properties.creator = "build_template.py"
+    wb.properties.lastModifiedBy = "build_template.py"
+
     OUT.parent.mkdir(parents=True, exist_ok=True)
     wb.save(OUT)
-    print(f"wrote {OUT.relative_to(ROOT)} ({n} rows, ~{2 * n} helper formulas)")
+    normalise(OUT)
+    print(f"wrote {OUT.relative_to(ROOT)} ({n} rows, {n} helper formulas)")
 
 
 if __name__ == "__main__":

@@ -14,12 +14,12 @@ from __future__ import annotations
 
 import argparse
 import json
-import math
 import shutil
 import subprocess
 import sys
 import tomllib
 from datetime import datetime, timezone
+from decimal import Decimal
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -84,13 +84,13 @@ def from_dir(d: Path) -> tuple[dict[str, str], dict[str, dict[str, dict]]]:
             status[impl], measured[impl] = "not run", {}
             continue
         try:
-            data = json.loads(f.read_text())
+            data = json.loads(f.read_text(encoding="utf-8"))
         except json.JSONDecodeError:
             status[impl], measured[impl] = "error", {}
             continue
         rows = data if isinstance(data, list) else [data]
         status[impl] = "ok"
-        measured[impl] = {r["case"]: r for r in rows if "binary64_hex" in r}
+        measured[impl] = {r["case"]: r for r in rows if "value" in r}
     return status, measured
 
 
@@ -100,10 +100,10 @@ def main() -> int:
                     help="read results-<impl>.json instead of invoking runners")
     args = ap.parse_args()
 
-    manifest = tomllib.loads(MANIFEST.read_text())
+    manifest = tomllib.loads(MANIFEST.read_text(encoding="utf-8"))
     cases = {
         c["id"]: c
-        for c in (json.loads(p.read_text())
+        for c in (json.loads(p.read_text(encoding="utf-8"))
                   for p in sorted((ROOT / "conformance" / "cases").rglob("*.json")))
     }
 
@@ -142,10 +142,9 @@ def main() -> int:
             r = measured[impl].get(cid)
             if r is None:
                 continue
-            expected = float.fromhex(case["expected"]["binary64_hex"])
-            actual = float.fromhex(r["binary64_hex"])
-            err = 0.0 if actual == expected else abs(actual - expected) / math.ulp(expected)
-            if err <= case["tolerance"]["compensated"]["ulp"]:
+            expected = float(Decimal(case["expected"]["exact_decimal"]))
+            err = abs(float(r["value"]) - expected) / abs(expected)
+            if err <= case["tolerance"]["rel"]:
                 passed += 1
             else:
                 failed += 1
@@ -168,28 +167,33 @@ def main() -> int:
         lines += [
             f"### `{cid}`", "",
             f"Spec § {case['spec']} · since {case['since']} · "
-            f"tolerance {case['tolerance']['compensated']['ulp']} ulp", "",
+            f"relative tolerance {case['tolerance']['rel']:.0e}", "",
             f"> {case['rationale']}", "",
-            f"Exact: `{case['expected']['exact_decimal']}` · "
-            f"golden: `{case['expected']['binary64_hex']}`", "",
-            "| implementation | binary64 | ulp error |", "|---|---|---|",
+            f"Exact result: `{case['expected']['exact_decimal']}`", "",
+            "| implementation | value | relative error |", "|---|---|---|",
         ]
-        expected = float.fromhex(case["expected"]["binary64_hex"])
+        expected = float(Decimal(case["expected"]["exact_decimal"]))
         for impl in manifest["implementations"]:
             r = measured[impl].get(cid)
             if r is None:
                 lines.append(f"| `{impl}` | — | not run |")
                 continue
-            actual = float.fromhex(r["binary64_hex"])
-            err = 0.0 if actual == expected else abs(actual - expected) / math.ulp(expected)
-            mark = "" if err <= case["tolerance"]["compensated"]["ulp"] else " ⚠"
-            lines.append(f"| `{impl}` | `{r['binary64_hex']}` | {err:.2f}{mark} |")
+            actual = float(r["value"])
+            err = abs(actual - expected) / abs(expected)
+            mark = "" if err <= case["tolerance"]["rel"] else " ⚠"
+            shown = "exact" if err == 0.0 else f"{err:.1e}"
+            lines.append(f"| `{impl}` | `{actual!r}` | {shown}{mark} |")
         lines.append("")
 
     OUT.parent.mkdir(parents=True, exist_ok=True)
-    OUT.write_text("\n".join(lines) + "\n")
+    OUT.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
     # spec/spec.md is canonical; docs/ gets a copy so mkdocs has one tree.
-    (ROOT / "docs" / "spec.md").write_text((ROOT / "spec" / "spec.md").read_text())
+    # newline is pinned: the default translates to CRLF on Windows, which would
+    # make the copy differ from its source on every line.
+    (ROOT / "docs" / "spec.md").write_text(
+        (ROOT / "spec" / "spec.md").read_text(encoding="utf-8"),
+        encoding="utf-8", newline="\n",
+    )
     print(f"wrote {OUT.relative_to(ROOT)}")
     for impl, state in status.items():
         print(f"  {impl:8} {state}")

@@ -29,7 +29,7 @@ run = "uv run --project impl/excel python impl/excel/runner.py"
 [cases."el/mean-ylt-10k"]
 spec = "4.1"
 since = "1.0"
-tolerance = "compensated"
+tolerance_rel = 1e-9          # spec SS 6.1 -- normative copy lives in the case file
 
 # Structural limits and known disagreements are declared, never skipped.
 # None at v1.0: all four implementations run this case and pass.

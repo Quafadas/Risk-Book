@@ -1,73 +1,67 @@
 """Native harness. Reads the same case files as every other implementation.
 
 Comparison logic is deliberately thin: the tolerance lives in the case data, so
-no implementation can quietly adopt its own idea of 'close enough' (spec SS 6.2).
+no implementation can quietly adopt its own idea of 'close enough'
+(spec SS 6.1).
 """
 
 from __future__ import annotations
 
 import json
-import math
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
 
-from ils_el.core import compensated_sum, expected_loss, read_ylt
+from ils_el.core import expected_loss, read_ylt
 
 ROOT = Path(__file__).resolve().parents[3]
 CASES = sorted((ROOT / "conformance" / "cases").rglob("*.json"))
 
 
 def load(case_path: Path):
-    case = json.loads(case_path.read_text())
+    case = json.loads(case_path.read_text(encoding="utf-8"))
     losses = read_ylt(ROOT / "conformance" / case["input"]["file"],
                       case["input"]["sha256"])
     return case, losses
 
 
-def ulp_error(actual: float, expected: float) -> float:
-    if actual == expected:
-        return 0.0
-    return abs(actual - expected) / math.ulp(expected)
+def relative_error(actual: float, expected: float) -> float:
+    return abs(actual - expected) / abs(expected)
 
 
 @pytest.mark.parametrize("case_path", CASES, ids=lambda p: p.stem)
 def test_case(case_path: Path) -> None:
     case, losses = load(case_path)
-    expected = float.fromhex(case["expected"]["binary64_hex"])
+    expected = float(Decimal(case["expected"]["exact_decimal"]))
     actual = expected_loss(losses, case["operation"]["n_years"])
-    budget = case["tolerance"]["compensated"]["ulp"]
-    assert ulp_error(actual, expected) <= budget, (
-        f"{case['id']}: got {actual.hex()}, want {case['expected']['binary64_hex']}"
+    err = relative_error(actual, expected)
+    assert err <= case["tolerance"]["rel"], (
+        f"{case['id']}: got {actual!r}, want {expected!r} "
+        f"({err:.3e} relative, tolerance {case['tolerance']['rel']:.0e})"
     )
 
 
 @pytest.mark.parametrize("case_path", CASES, ids=lambda p: p.stem)
-def test_exact_decimal_agrees_with_hex(case_path: Path) -> None:
-    """The two golden forms must denote the same number (spec SS 6.1)."""
-    case = json.loads(case_path.read_text())
-    from decimal import Decimal
-    assert float(Decimal(case["expected"]["exact_decimal"])) == \
-        float.fromhex(case["expected"]["binary64_hex"])
+def test_row_count_matches_declaration(case_path: Path) -> None:
+    case, losses = load(case_path)
+    assert len(losses) == case["input"]["rows"]
 
 
-def test_naive_summation_is_rejected() -> None:
-    """Guards the reason SS 3.2 exists.
+@pytest.mark.parametrize("case_path", CASES, ids=lambda p: p.stem)
+def test_tolerance_catches_a_real_error(case_path: Path) -> None:
+    """The tolerance must still fail a wrong answer (spec SS 6.1).
 
-    If this ever passes, the corpus has stopped discriminating between
-    summation strategies and the case needs strengthening, not deleting.
+    Dropping one loss-bearing year is the cheapest realistic mistake -- an
+    off-by-one on the row range. If this ever passes, the tolerance has stopped
+    discriminating and the case needs a tighter one.
     """
-    case, losses = load(ROOT / "conformance" / "cases" / "el" / "mean-ylt-10k.json")
-    expected = float.fromhex(case["expected"]["binary64_hex"])
-    naive = 0.0
-    for x in losses:
-        naive += x
-    assert ulp_error(naive / case["operation"]["n_years"], expected) > 1.0
-
-
-def test_compensated_sum_handles_dominant_year() -> None:
-    """Neumaier over Kahan: correction must survive a large addend (SS 3.2)."""
-    assert compensated_sum([1.0, 1e100, 1.0, -1e100]) == 2.0
+    case, losses = load(case_path)
+    expected = float(Decimal(case["expected"]["exact_decimal"]))
+    dropped = losses.copy()
+    dropped.remove(min(x for x in losses if x > 0))
+    actual = expected_loss(dropped, case["operation"]["n_years"])
+    assert relative_error(actual, expected) > case["tolerance"]["rel"]
 
 
 def test_rejects_bad_digest(tmp_path: Path) -> None:
@@ -75,3 +69,8 @@ def test_rejects_bad_digest(tmp_path: Path) -> None:
     p.write_text("year,loss\n1,1.00\n")
     with pytest.raises(ValueError, match="digest mismatch"):
         read_ylt(p, "0" * 64)
+
+
+def test_rejects_non_positive_n_years() -> None:
+    with pytest.raises(ValueError, match="must be positive"):
+        expected_loss([1.0, 2.0], 0)

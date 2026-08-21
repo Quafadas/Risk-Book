@@ -3,5 +3,17 @@ uuid = "3f6c1a54-9d2e-4b87-a1f0-6e5c9b2d4a71"
 authors = ["ILS Conformance Suite contributors"]
 version = "1.0.0"
 
+# SHA backs the corpus digest check in src/ILSEL.jl. JSON3 backs the black-box
+# runner in bin/run.jl, which is executed with --project=impl/julia and so
+# resolves against this environment.
+[deps]
+JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
+SHA = "ea8e919c-243c-51af-8825-aaa63cd721ce"
+
 [compat]
+JSON3 = "1"
 julia = "1.10"
+
+# Test dependencies live in test/Project.toml, not in [extras]/[targets] here.
+# Declaring both would mean two mechanisms for one job, where deleting either
+# changes behaviour silently.

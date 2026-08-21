@@ -1,4 +1,10 @@
+# Normalise line endings to LF in the working tree, not just in the index.
+# conformance/data/*.csv is digest-pinned by the case files (spec SS 6.1), so a
+# CRLF checkout would fail every implementation's integrity check. Marking it
+# -text keeps its bytes exactly as committed on every platform.
+* text=auto eol=lf
+conformance/data/*.csv -text linguist-generated=true
+
 # The template is a binary build artifact; CI verifies it matches
 # build_template.py. Reviewers read the builder, not the zip.
 impl/excel/templates/*.xlsx binary linguist-generated=true
-conformance/data/*.csv linguist-generated=true
