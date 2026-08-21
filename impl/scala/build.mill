@@ -5,7 +5,7 @@ import mill.*, scalalib.*
 
 /** Scala implementation of the ILS risk conformance spec, v1.0.
   *
-  * Independent of impl/python: shares only the case corpus (spec SS 6.2).
+  * Independent of impl/python: shares only the case corpus (spec SS 4.2).
   */
 object `package` extends ScalaModule {
   def scalaVersion = "3.9.0-RC6"
