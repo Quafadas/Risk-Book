@@ -75,7 +75,15 @@ jobs:
           CONFORMANCE_ROOT: ${{ github.workspace }}
         run: |
           mkdir -p ../../results
-          ./mill run > ../../results/results-scala.json
+          # Mill re-emits the forked process's output through its own logger, so
+          # a stack trace lands in the redirect target rather than the job log.
+          # Print it on failure or the error is invisible.
+          ./mill run > ../../results/results-scala.json || {
+            echo "::group::captured output"
+            cat ../../results/results-scala.json
+            echo "::endgroup::"
+            exit 1
+          }
       - uses: actions/upload-artifact@v4
         with: { name: results-scala, path: results/ }
 

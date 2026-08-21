@@ -58,15 +58,27 @@ def invoke(impl: str) -> tuple[str, list[dict]]:
     if proc.returncode != 0:
         return "error", []
 
-    payload = proc.stdout.strip()
+    rows = parse_envelope(proc.stdout)
+    return ("ok", rows) if rows is not None else ("error", [])
+
+
+def parse_envelope(payload: str) -> list[dict] | None:
+    """Parse a runner's stdout into envelope rows, or None if it is not JSON.
+
+    Tolerant of leading noise: a build tool or a language runtime may print a
+    banner, a precompilation notice or a progress ticker onto the same stream
+    the envelope is written to. Returns a list even for a single object, which
+    spec SS 6.3 permits.
+    """
+    payload = payload.strip()
     start = min((i for i in (payload.find("["), payload.find("{")) if i >= 0), default=-1)
     if start < 0:
-        return "error", []
+        return None
     try:
         data = json.loads(payload[start:])
     except json.JSONDecodeError:
-        return "error", []
-    return "ok", data if isinstance(data, list) else [data]
+        return None
+    return data if isinstance(data, list) else [data]
 
 
 def from_dir(d: Path) -> tuple[dict[str, str], dict[str, dict[str, dict]]]:
@@ -83,12 +95,10 @@ def from_dir(d: Path) -> tuple[dict[str, str], dict[str, dict[str, dict]]]:
         if not f.exists():
             status[impl], measured[impl] = "not run", {}
             continue
-        try:
-            data = json.loads(f.read_text(encoding="utf-8"))
-        except json.JSONDecodeError:
+        rows = parse_envelope(f.read_text(encoding="utf-8"))
+        if rows is None:
             status[impl], measured[impl] = "error", {}
             continue
-        rows = data if isinstance(data, list) else [data]
         status[impl] = "ok"
         measured[impl] = {r["case"]: r for r in rows if "value" in r}
     return status, measured

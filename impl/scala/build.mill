@@ -17,13 +17,21 @@ object `package` extends ScalaModule {
 
   def scalacOptions = Seq("-deprecation", "-feature", "-Wunused:all")
 
+  // The corpus lives two levels up, outside this build. Both `run` and `test`
+  // fork a JVM whose working directory is a Mill task dest, not the repo root,
+  // so the root has to be passed explicitly. Deriving it from the workspace
+  // rather than reading it from the ambient environment also means it does not
+  // depend on what the Mill server was started with.
+  private def conformanceRoot: String =
+    (mill.api.BuildCtx.workspaceRoot / os.up / os.up).toString
+
+  def forkEnv = super.forkEnv() + ("CONFORMANCE_ROOT" -> conformanceRoot)
+
   object test extends ScalaTests, TestModule.Munit {
     def mvnDeps = Seq(mvn"org.scalameta::munit:1.3.5")
 
-    // The corpus lives two levels up; tests fork, so pass the root explicitly
-    // rather than relying on the working directory.
-    def forkEnv = super.forkEnv() + (
-      "CONFORMANCE_ROOT" -> (mill.api.BuildCtx.workspaceRoot / os.up / os.up).toString
-    )
+    // `super` here is ScalaTests, not the enclosing module, so this repeats the
+    // binding rather than inheriting it.
+    def forkEnv = super.forkEnv() + ("CONFORMANCE_ROOT" -> conformanceRoot)
   }
 }
