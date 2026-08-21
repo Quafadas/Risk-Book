@@ -54,7 +54,11 @@ jobs:
       - uses: coursier/cache-action@v7
         with: { cache: "mill", extraFiles: "impl/scala/build.mill" }
       - uses: coursier/setup-action@v3
-        with: { jvm: temurin:25, apps:[]}
+        with:
+          # Quoted and in block style: a plain scalar containing a colon inside
+          # a flow mapping is ambiguous, and `key:value` without a space after
+          # the colon is not a valid flow mapping entry at all.
+          jvm: "temurin:25"          
       - name: Bootstrap Mill
         working-directory: impl/scala
         run: |
