@@ -1,19 +1,14 @@
 package ils_el
 
 import java.security.MessageDigest
+import vecxt.all.sumSIMD
 
 /** Expected loss over a year loss table (spec SS 3.2, SS 4.1). */
 object Ylt:
 
-  /** Expected annual loss (spec SS 4.1).
-    *
-    * The sum is `Array[Double].sum` -- the standard facility, per SS 3.2. It is
-    * a left fold, so it will not match a pairwise sum to the last bit; the
-    * case tolerance covers that.
-    */
   def expectedLoss(losses: Array[Double], nYears: Int): Double =
     require(nYears > 0, "nYears must be positive")
-    losses.sum / nYears
+    losses.sumSIMD / nYears
 
   def expectedLoss(losses: Array[Double]): Double =
     expectedLoss(losses, losses.length)
