@@ -723,11 +723,13 @@ and the tolerance is there to absorb the difference.</p>
 <p>Rebuild with <code>just build-excel</code> and commit the resulting workbook; CI fails if
 the committed file does not match the builder. Reviewers read
 <code>build_template.py</code>, not the zip.</p>
-<p>The build is byte-reproducible — document and zip-member timestamps are pinned
-to a fixed epoch — so a rebuild on an unchanged corpus leaves the worktree
-clean. If <code>just build-excel</code> dirties the tree without an intended change,
-something has reintroduced a wall-clock stamp; fix that rather than committing
-the churn.</p>
+<p><code>just check-excel</code> is the check CI runs. It compares the <strong>formulas, cell values
+and named ranges</strong> of the committed workbook against a fresh build, and names
+the first cells that differ. It deliberately does not compare the file's bytes:
+an <code>.xlsx</code> is a zip of XML, and its bytes depend on the openpyxl version and on
+the platform's deflate implementation, so a byte comparison reports differences
+that have nothing to do with the workbook. Formatting — fonts, fills, column
+widths — is cosmetic and is not compared either.</p>
 <p>Named-range addresses are derived from the layout at build time. Never hardcode
 them: a hardcoded address that drifts out of step produces a silently wrong
 answer rather than an error. This has already happened once during development
