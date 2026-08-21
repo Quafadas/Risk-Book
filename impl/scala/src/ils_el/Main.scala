@@ -12,7 +12,7 @@ object Main:
 
     val results = paths.map: p =>
       val c = Case.load(p)
-      val losses = Ylt.readYlt(root / "conformance" / c.input.file, Some(c.input.sha256))
+      val losses = Ylt.readYlt(Case.dataPath(root, c), Some(c.input.sha256))
       ujson.Obj(
         "case" -> c.id,
         "impl" -> "scala",

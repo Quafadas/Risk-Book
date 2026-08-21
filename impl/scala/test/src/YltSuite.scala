@@ -22,7 +22,7 @@ class YltSuite extends munit.FunSuite:
     val expected = Case.golden(c)
 
     test(s"${c.id}: expected loss"):
-      val losses = Ylt.readYlt(root / "conformance" / c.input.file, Some(c.input.sha256))
+      val losses = Ylt.readYlt(Case.dataPath(root, c), Some(c.input.sha256))
       assertEquals(losses.length, c.input.rows)
       val actual = Ylt.expectedLoss(losses, c.operation.n_years)
       val err = Case.relativeError(actual, expected)
@@ -34,7 +34,7 @@ class YltSuite extends munit.FunSuite:
     test(s"${c.id}: tolerance catches a real error"):
       // Dropping one loss-bearing year is the cheapest realistic mistake, an
       // off-by-one on the row range. It must fail (spec SS 6.1).
-      val losses = Ylt.readYlt(root / "conformance" / c.input.file)
+      val losses = Ylt.readYlt(Case.dataPath(root, c))
       val smallest = losses.filter(_ > 0.0).min
       val dropped = losses.patch(losses.indexOf(smallest), Nil, 1)
       val actual = Ylt.expectedLoss(dropped, c.operation.n_years)
