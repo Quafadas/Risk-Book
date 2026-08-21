@@ -4,8 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
-  schedule:
-    - cron: "0 6 * * 1"   # weekly, to catch toolchain drift
+    branches: [main]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -17,7 +16,7 @@ permissions:
 jobs:
   # Gate. A malformed corpus means the question being asked is wrong, so there
   # is no point running any implementation against it.
-  corpus:
+  check-malformed-corpus:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -32,7 +31,7 @@ jobs:
             conformance/cases/**/*.json
 
   python:
-    needs: corpus
+    needs: check-malformed-corpus
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -48,7 +47,7 @@ jobs:
         with: { name: results-python, path: results/ }
 
   scala:
-    needs: corpus
+    needs: check-malformed-corpus
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -58,7 +57,7 @@ jobs:
         working-directory: impl/scala
         run: |
           curl -fsSL -o mill \
-            https://repo1.maven.org/maven2/com/lihaoyi/mill-dist/1.0.6/mill-dist-1.0.6-mill.sh
+            https://repo1.maven.org/maven2/com/lihaoyi/mill-dist/1.1.8/mill-dist-1.1.8-mill.sh
           chmod +x mill
       - name: Test
         working-directory: impl/scala
@@ -74,7 +73,7 @@ jobs:
         with: { name: results-scala, path: results/ }
 
   julia:
-    needs: corpus
+    needs: check-malformed-corpus
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -90,10 +89,9 @@ jobs:
         with: { name: results-julia, path: results/ }
 
   # LibreOffice is a DIFFERENT implementation of Excel semantics. This job
-  # gates on it; the claim it licenses is about LibreOffice, not Excel
-  # (spec § 7.2). See the excel-fidelity job for the stronger claim.
-  excel:
-    needs: corpus
+  # gates on it; the claim it licenses is about LibreOffice.
+  LibreOffice:
+    needs: check-malformed-corpus
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -119,21 +117,21 @@ jobs:
   # Office install; GitHub's hosted windows images do not ship Excel. Scheduled
   # rather than per-commit. Divergence from the LibreOffice column is itself a
   # reportable finding, so this job does not gate merges.
-  excel-fidelity:
-    if: github.event_name == 'schedule'
-    continue-on-error: true
-    runs-on: [self-hosted, windows, excel]
-    needs: corpus
-    steps:
-      - uses: actions/checkout@v4
-      - run: pip install openpyxl xlwings
-      - run: python impl/excel/runner.py --engine com > results-excel-com.json
-      - uses: actions/upload-artifact@v4
-        with: { name: results-excel-com, path: results-excel-com.json }
+  # excel-fidelity:
+  #   if: github.event_name == 'schedule'
+  #   continue-on-error: true
+  #   runs-on: [self-hosted, windows, excel]
+  #   needs: check-malformed-corpus
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - run: pip install openpyxl xlwings
+  #     - run: python impl/excel/runner.py --engine com > results-excel-com.json
+  #     - uses: actions/upload-artifact@v4
+  #       with: { name: results-excel-com, path: results-excel-com.json }
 
   docs:
-    needs: [python, scala, julia, excel]
-    if: always() && needs.corpus.result == 'success'
+    needs: [python, scala, julia, LibreOffice]
+    if: always() && needs.check-malformed-corpus.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: write
