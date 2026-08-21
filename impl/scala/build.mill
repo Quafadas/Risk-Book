@@ -2,7 +2,6 @@
 package build
 
 import mill.*, scalalib.*
-import mill.api.Task.Simple
 
 /** Scala implementation of the ILS risk conformance spec, v1.0.
   *
@@ -27,15 +26,22 @@ object `package` extends ScalaModule {
   private def conformanceRoot: String =
     (mill.api.BuildCtx.workspaceRoot / os.up / os.up).toString
 
-  val vecIncubatorFlag: Seq[String] = Seq("--add-modules", "jdk.incubator.vector")
+  // A JVM flag, not an environment variable: vecxt's sumSIMD calls into the
+  // incubating Vector API, which the runtime only exposes when the module is
+  // admitted explicitly. Hence forkArgs (Seq[String]) rather than forkEnv,
+  // which is a Map[String, String].
+  private def vecIncubatorFlags: Seq[String] =
+    Seq("--add-modules", "jdk.incubator.vector")
 
-  def forkEnv: Simple[Seq[String]] = super.forkEnv() ++ Seq("CONFORMANCE_ROOT", conformanceRoot) ++ vecIncubatorFlag
+  def forkEnv = super.forkEnv() + ("CONFORMANCE_ROOT" -> conformanceRoot)
+  def forkArgs = super.forkArgs() ++ vecIncubatorFlags
 
   object test extends ScalaTests, TestModule.Munit {
     def mvnDeps = Seq(mvn"org.scalameta::munit:1.3.5")
 
-    // `super` here is ScalaTests, not the enclosing module, so this repeats the
-    // binding rather than inheriting it.
-    def forkEnv: Simple[Seq[String]] = super.forkEnv() ++ Seq("CONFORMANCE_ROOT", conformanceRoot) ++ vecIncubatorFlag
+    // `super` here is ScalaTests, not the enclosing module, so these repeat the
+    // bindings rather than inheriting them.
+    def forkEnv = super.forkEnv() + ("CONFORMANCE_ROOT" -> conformanceRoot)
+    def forkArgs = super.forkArgs() ++ vecIncubatorFlags
   }
 }
