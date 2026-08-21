@@ -58,7 +58,8 @@ jobs:
           # Quoted and in block style: a plain scalar containing a colon inside
           # a flow mapping is ambiguous, and `key:value` without a space after
           # the colon is not a valid flow mapping entry at all.
-          jvm: "temurin:25"          
+          jvm: "temurin:25"
+          apps: ""
       - name: Bootstrap Mill
         working-directory: impl/scala
         run: |
