@@ -26,13 +26,15 @@ object `package` extends ScalaModule {
   private def conformanceRoot: String =
     (mill.api.BuildCtx.workspaceRoot / os.up / os.up).toString
 
-  def forkEnv = super.forkEnv() + ("CONFORMANCE_ROOT" -> conformanceRoot)
+  val vecIncubatorFlag: Seq[String] = Seq("--add-modules", "jdk.incubator.vector")
+
+  def forkEnv: Simple[Seq[String]] = super.forkEnv() ++ Seq("CONFORMANCE_ROOT", conformanceRoot) ++ vecIncubatorFlag
 
   object test extends ScalaTests, TestModule.Munit {
     def mvnDeps = Seq(mvn"org.scalameta::munit:1.3.5")
 
     // `super` here is ScalaTests, not the enclosing module, so this repeats the
     // binding rather than inheriting it.
-    def forkEnv = super.forkEnv() + ("CONFORMANCE_ROOT" -> conformanceRoot)
+    def forkEnv: Simple[Seq[String]] = super.forkEnv() ++ Seq("CONFORMANCE_ROOT", conformanceRoot) ++ vecIncubatorFlag
   }
 }
