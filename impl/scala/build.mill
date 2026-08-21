@@ -2,6 +2,7 @@
 package build
 
 import mill.*, scalalib.*
+import mill.api.Task.Simple
 
 /** Scala implementation of the ILS risk conformance spec, v1.0.
   *
