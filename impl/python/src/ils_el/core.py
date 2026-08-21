@@ -29,11 +29,11 @@ def expected_loss(losses: Sequence[float] | np.ndarray,
     the table omits zero-loss years, which the ELT form does; the YLT form in
     this case carries them.
     """
-    values = np.asarray(losses, dtype=np.float64)
-    n = values.size if n_years is None else n_years
-    if n <= 0:
+    values = np.asarray(losses, dtype=np.float64)        
+    if n_years is None or n_years <= 0:
         raise ValueError("n_years must be positive")
-    return float(values.sum() / n)
+
+    return float(values.sum() / n_years)
 
 
 def read_ylt(path: str | Path, expected_sha256: str | None = None) -> np.ndarray:

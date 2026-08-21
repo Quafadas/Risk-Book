@@ -36,6 +36,11 @@ object `package` extends ScalaModule {
   def forkEnv = super.forkEnv() + ("CONFORMANCE_ROOT" -> conformanceRoot)
   def forkArgs = super.forkArgs() ++ vecIncubatorFlags
 
+  // Pinned rather than auto-detected: `mill run` otherwise scans the classpath
+  // for a class with a main method, and which one it picks is not something the
+  // build should leave to chance.
+  def mainClass = Some("ils_el.Main")
+
   object test extends ScalaTests, TestModule.Munit {
     def mvnDeps = Seq(mvn"org.scalameta::munit:1.3.5")
 

@@ -19,8 +19,8 @@ jobs:
   check-malformed-corpus:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with: { python-version: "3.12" }
       - run: python tools/check_corpus.py
       - run: python tools/check_independence.py
@@ -34,8 +34,8 @@ jobs:
     needs: check-malformed-corpus
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v7
         with: { enable-cache: true }
       - run: uv run --project impl/python pytest impl/python/tests -q
       - name: Emit envelope
@@ -43,14 +43,14 @@ jobs:
           mkdir -p results
           uv run --project impl/python ils-el \
             conformance/cases/el/mean-ylt-10k.json > results/results-python.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with: { name: results-python, path: results/ }
 
   scala:
     needs: check-malformed-corpus
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: coursier/cache-action@v7
         with: { extraMillFiles: "impl/scala/build.mill" }
       - uses: coursier/setup-action@v3
@@ -89,14 +89,14 @@ jobs:
           # Confirm the envelope is JSON and not Mill's own chatter.
           echo "envelope head:"
           head -c 300 ../../results/results-scala.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with: { name: results-scala, path: results/ }
 
   julia:
     needs: check-malformed-corpus
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: julia-actions/setup-julia@v2
         with: { version: "1" }
       - uses: julia-actions/cache@v2
@@ -105,7 +105,7 @@ jobs:
         run: |
           mkdir -p results
           julia --project=impl/julia impl/julia/bin/run.jl > results/results-julia.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with: { name: results-julia, path: results/ }
 
   # LibreOffice is a DIFFERENT implementation of Excel semantics. This job
@@ -114,8 +114,8 @@ jobs:
     needs: check-malformed-corpus
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v7
         with: { enable-cache: true }
       - name: Install LibreOffice
         run: |
@@ -131,7 +131,7 @@ jobs:
         run: |
           mkdir -p results
           uv run --project impl/excel python impl/excel/runner.py > results/results-excel.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with: { name: results-excel, path: results/ }
 
   # Real Excel via COM. Requires a self-hosted Windows runner with a licensed
@@ -144,10 +144,10 @@ jobs:
   #   runs-on: [self-hosted, windows, excel]
   #   needs: check-malformed-corpus
   #   steps:
-  #     - uses: actions/checkout@v4
+  #     - uses: actions/checkout@v5
   #     - run: pip install openpyxl xlwings
   #     - run: python impl/excel/runner.py --engine com > results-excel-com.json
-  #     - uses: actions/upload-artifact@v4
+  #     - uses: actions/upload-artifact@v6
   #       with: { name: results-excel-com, path: results-excel-com.json }
 
   # The scorecard reports whatever came back, so this runs even when an
@@ -161,8 +161,8 @@ jobs:
     if: always() && needs.check-malformed-corpus.result == 'success'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with: { python-version: "3.12" }
       # Every implementation's envelope, merged into one directory.
       - uses: actions/download-artifact@v4
@@ -199,4 +199,4 @@ jobs:
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - id: deploy
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
