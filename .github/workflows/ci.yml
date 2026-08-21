@@ -1,0 +1,154 @@
+name: conformance
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "0 6 * * 1"   # weekly, to catch toolchain drift
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # Gate. A malformed corpus means the question being asked is wrong, so there
+  # is no point running any implementation against it.
+  corpus:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: python tools/check_corpus.py
+      - run: python tools/check_independence.py
+      - name: Validate cases against schema
+        run: |
+          pip install --quiet check-jsonschema
+          check-jsonschema --schemafile conformance/schema/case.schema.json \
+            conformance/cases/**/*.json
+
+  python:
+    needs: corpus
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with: { enable-cache: true }
+      - run: uv run --project impl/python pytest impl/python/tests -q
+      - name: Emit envelope
+        run: |
+          mkdir -p results
+          uv run --project impl/python ils-el \
+            conformance/cases/el/mean-ylt-10k.json > results/results-python.json
+      - uses: actions/upload-artifact@v4
+        with: { name: results-python, path: results/ }
+
+  scala:
+    needs: corpus
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "21", cache: sbt }
+      - name: Bootstrap Mill
+        working-directory: impl/scala
+        run: |
+          curl -fsSL -o mill \
+            https://repo1.maven.org/maven2/com/lihaoyi/mill-dist/1.0.6/mill-dist-1.0.6-mill.sh
+          chmod +x mill
+      - name: Test
+        working-directory: impl/scala
+        run: ./mill test
+      - name: Emit envelope
+        working-directory: impl/scala
+        env:
+          CONFORMANCE_ROOT: ${{ github.workspace }}
+        run: |
+          mkdir -p ../../results
+          ./mill run > ../../results/results-scala.json
+      - uses: actions/upload-artifact@v4
+        with: { name: results-scala, path: results/ }
+
+  julia:
+    needs: corpus
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with: { version: "1" }
+      - uses: julia-actions/cache@v2
+      - run: julia --project=impl/julia -e 'using Pkg; Pkg.instantiate(); Pkg.test()'
+      - name: Emit envelope
+        run: |
+          mkdir -p results
+          julia --project=impl/julia impl/julia/bin/run.jl > results/results-julia.json
+      - uses: actions/upload-artifact@v4
+        with: { name: results-julia, path: results/ }
+
+  # LibreOffice is a DIFFERENT implementation of Excel semantics. This job
+  # gates on it; the claim it licenses is about LibreOffice, not Excel
+  # (spec § 7.2). See the excel-fidelity job for the stronger claim.
+  excel:
+    needs: corpus
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with: { enable-cache: true }
+      - name: Install LibreOffice
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends libreoffice-calc
+      - name: Rebuild template and check it is in sync
+        run: |
+          uv run --project impl/excel python impl/excel/build_template.py
+          git diff --exit-code --stat -- impl/excel/templates \
+            || (echo "::error::Template is stale; commit the rebuilt workbook." && exit 1)
+      - name: Run
+        run: |
+          mkdir -p results
+          uv run --project impl/excel python impl/excel/runner.py > results/results-excel.json
+      - uses: actions/upload-artifact@v4
+        with: { name: results-excel, path: results/ }
+
+  # Real Excel via COM. Requires a self-hosted Windows runner with a licensed
+  # Office install; GitHub's hosted windows images do not ship Excel. Scheduled
+  # rather than per-commit. Divergence from the LibreOffice column is itself a
+  # reportable finding, so this job does not gate merges.
+  excel-fidelity:
+    if: github.event_name == 'schedule'
+    continue-on-error: true
+    runs-on: [self-hosted, windows, excel]
+    needs: corpus
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install openpyxl xlwings
+      - run: python impl/excel/runner.py --engine com > results-excel-com.json
+      - uses: actions/upload-artifact@v4
+        with: { name: results-excel-com, path: results-excel-com.json }
+
+  docs:
+    needs: [python, scala, julia, excel]
+    if: always() && needs.corpus.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - uses: actions/download-artifact@v4
+        with: { path: artifacts, merge-multiple: true }
+      - name: Generate scorecard
+        run: python tools/scorecard.py --results-dir artifacts
+      - run: pip install --quiet mkdocs-material
+      - name: Build
+        run: mkdocs build --strict
+      - name: Publish
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: mkdocs gh-deploy --force

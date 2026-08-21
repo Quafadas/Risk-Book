@@ -1,0 +1,29 @@
+//| mill-version: 1.0.6
+package build
+
+import mill.*, scalalib.*
+
+/** Scala implementation of the ILS risk conformance spec, v1.0.
+  *
+  * Independent of impl/python: shares only the case corpus (spec SS 6.2).
+  */
+object `package` extends ScalaModule {
+  def scalaVersion = "3.7.1"
+
+  def mvnDeps = Seq(
+    mvn"com.lihaoyi::upickle:4.1.0",
+    mvn"com.lihaoyi::os-lib:0.11.4"
+  )
+
+  def scalacOptions = Seq("-deprecation", "-feature", "-Wunused:all")
+
+  object test extends ScalaTests, TestModule.Munit {
+    def mvnDeps = Seq(mvn"org.scalameta::munit:1.1.0")
+
+    // The corpus lives two levels up; tests fork, so pass the root explicitly
+    // rather than relying on the working directory.
+    def forkEnv = super.forkEnv() + (
+      "CONFORMANCE_ROOT" -> (mill.api.BuildCtx.workspaceRoot / os.up / os.up).toString
+    )
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "id": "el/mean-ylt-10k",
+  "spec": "4.1",
+  "since": "1.0",
+  "rationale": "Smallest possible end-to-end case: parse a 10k-row YLT and reduce it to a single number. Exists to pin the summation convention before any structure is layered on top -- naive left-fold, pairwise and compensated summation give three different answers on this input.",
+  "input": {
+    "kind": "ylt",
+    "file": "data/ylt-10k.csv",
+    "sha256": "64de151ee033c19f737447e8c037825d6fc7958dfd7622f0929fed82ffee293b",
+    "rows": 10000,
+    "columns": [
+      "year",
+      "loss"
+    ],
+    "currency": "USD",
+    "scale": 1
+  },
+  "operation": {
+    "name": "expected_loss",
+    "n_years": 10000
+  },
+  "expected": {
+    "exact_decimal": "5493015.493994",
+    "binary64_hex": "0x1.4f445df9d9903p+22",
+    "binary64_repr": "5493015.493994"
+  },
+  "tolerance": {
+    "compensated": {
+      "ulp": 0
+    },
+    "loose": {
+      "rel": 1e-12,
+      "abs": 1e-06
+    }
+  }
+}

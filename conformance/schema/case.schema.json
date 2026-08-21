@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/OWNER/ils-conformance/conformance/schema/case.schema.json",
+  "title": "ILS conformance case",
+  "type": "object",
+  "required": ["id", "spec", "since", "rationale", "input", "operation", "expected", "tolerance"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z0-9]+/[a-z0-9-]+$" },
+    "spec": { "type": "string", "description": "Section of spec/spec.md this case exercises" },
+    "since": { "type": "string", "description": "Spec version that introduced this case" },
+    "rationale": {
+      "type": "string",
+      "minLength": 40,
+      "description": "What this case is trying to break. Required: without it a reader cannot distinguish a deliberate edge case from a typo."
+    },
+    "input": {
+      "type": "object",
+      "required": ["kind", "file", "sha256", "rows"],
+      "properties": {
+        "kind": { "enum": ["ylt", "elt"] },
+        "file": { "type": "string" },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "rows": { "type": "integer", "minimum": 1 },
+        "columns": { "type": "array", "items": { "type": "string" } },
+        "currency": { "type": "string" },
+        "scale": { "type": "number" }
+      }
+    },
+    "operation": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": { "enum": ["expected_loss"] },
+        "n_years": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "expected": {
+      "type": "object",
+      "required": ["exact_decimal", "binary64_hex"],
+      "properties": {
+        "exact_decimal": { "type": "string" },
+        "binary64_hex": { "type": "string", "pattern": "^-?0x1\\.[0-9a-f]+p[+-][0-9]+$|^0x0\\.0p\\+0$" },
+        "binary64_repr": { "type": "string" }
+      }
+    },
+    "tolerance": {
+      "type": "object",
+      "description": "Tolerance lives here, never in an implementation's test code (spec 6.2)",
+      "properties": {
+        "compensated": {
+          "type": "object",
+          "required": ["ulp"],
+          "properties": { "ulp": { "type": "number", "minimum": 0 } }
+        },
+        "loose": {
+          "type": "object",
+          "properties": { "rel": { "type": "number" }, "abs": { "type": "number" } }
+        }
+      }
+    }
+  }
+}

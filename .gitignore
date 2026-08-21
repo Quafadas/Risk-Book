@@ -1,0 +1,11 @@
+out/
+.mill/
+Manifest.toml
+__pycache__/
+.pytest_cache/
+.venv/
+uv.lock
+site/
+results/
+artifacts/
+impl/scala/mill

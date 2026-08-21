@@ -1,0 +1,43 @@
+# Conformance manifest. The scorecard and divergence report are generated from
+# this file plus measured results -- never hand-maintained (spec SS 6.4).
+
+spec_version = "1.0"
+
+[implementations.python]
+tier = "reference"
+targets = "1.0"
+run = "uv run --project impl/python pytest impl/python/tests -q"
+
+[implementations.scala]
+tier = "conformant"
+targets = "1.0"
+run = "cd impl/scala && ./mill test"
+
+[implementations.julia]
+tier = "conformant"
+targets = "1.0"
+run = "julia --project=impl/julia -e 'using Pkg; Pkg.test()'"
+
+[implementations.excel]
+tier = "partial"
+targets = "1.0"
+engine = "libreoffice"          # spec SS 7.2 -- NOT a claim about Excel
+run = "uv run --project impl/excel python impl/excel/runner.py"
+
+# --- cases ------------------------------------------------------------------
+
+[cases."el/mean-ylt-10k"]
+spec = "4.1"
+since = "1.0"
+tolerance = "compensated"
+
+# Structural limits and known disagreements are declared, never skipped.
+# None at v1.0: all four implementations run this case and pass.
+#
+# Declarations look like this once the corpus grows past the Excel row ceiling:
+#
+#   [cases."ep/oep-from-ylt-1e6"]
+#   unsupported.excel = "1,048,576 row limit; see spec SS 7"
+#
+#   [cases."layer/indexation-circular"]
+#   xfail.excel = "requires iterative calculation; see spec SS 5.6"

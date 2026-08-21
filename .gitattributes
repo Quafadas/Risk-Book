@@ -1,0 +1,4 @@
+# The template is a binary build artifact; CI verifies it matches
+# build_template.py. Reviewers read the builder, not the zip.
+impl/excel/templates/*.xlsx binary linguist-generated=true
+conformance/data/*.csv linguist-generated=true

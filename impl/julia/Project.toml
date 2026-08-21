@@ -1,0 +1,7 @@
+name = "ILSEL"
+uuid = "3f6c1a54-9d2e-4b87-a1f0-6e5c9b2d4a71"
+authors = ["ILS Conformance Suite contributors"]
+version = "1.0.0"
+
+[compat]
+julia = "1.10"

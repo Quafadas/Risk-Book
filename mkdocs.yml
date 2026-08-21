@@ -1,0 +1,37 @@
+site_name: ILS Risk Conformance Suite
+site_description: A language-neutral specification and test corpus for ILS risk calculations
+repo_url: https://github.com/OWNER/ils-conformance
+edit_uri: edit/main/
+
+theme:
+  name: material
+  features: [navigation.sections, navigation.top, content.code.copy, content.action.edit]
+  palette:
+    - scheme: default
+      primary: black
+      toggle: { icon: material/weather-night, name: Dark mode }
+    - scheme: slate
+      primary: black
+      toggle: { icon: material/weather-sunny, name: Light mode }
+
+nav:
+  - Home: index.md
+  - Specification: spec.md
+  - Results: results.md
+  - Glossary: glossary.md
+  - Decisions:
+      - ADR-0001 Summation convention: adr/0001-summation.md
+      - ADR-0002 Quantile convention: adr/0002-quantiles.md
+  - Contributing: contributing.md
+
+markdown_extensions:
+  - admonition
+  - tables
+  - toc: { permalink: true }
+  - pymdownx.superfences
+  - pymdownx.highlight
+
+plugins:
+  - search
+
+strict: true
