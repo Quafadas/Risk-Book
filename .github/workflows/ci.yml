@@ -51,8 +51,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with: { distribution: temurin, java-version: "21", cache: sbt }
+      - uses: coursier/cache-action@v7
+        with: { cache: "mill", extraFiles: "impl/scala/build.mill" }
+      - uses: coursier/setup-action@v3
+        with: { jvm: temurin:25, apps:[]}
       - name: Bootstrap Mill
         working-directory: impl/scala
         run: |
@@ -101,11 +103,12 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq --no-install-recommends libreoffice-calc
-      - name: Rebuild template and check it is in sync
-        run: |
-          uv run --project impl/excel python impl/excel/build_template.py
-          git diff --exit-code --stat -- impl/excel/templates \
-            || (echo "::error::Template is stale; commit the rebuilt workbook." && exit 1)
+      # Compares formulas, values and named ranges against the builder -- not
+      # the archive bytes. An .xlsx is a zip of XML whose bytes depend on the
+      # openpyxl version and the platform's deflate implementation, so a byte
+      # comparison fails for reasons unrelated to the workbook.
+      - name: Check template matches its builder
+        run: uv run --project impl/excel python impl/excel/build_template.py --check
       - name: Run
         run: |
           mkdir -p results

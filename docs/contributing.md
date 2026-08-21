@@ -51,11 +51,13 @@ Rebuild with `just build-excel` and commit the resulting workbook; CI fails if
 the committed file does not match the builder. Reviewers read
 `build_template.py`, not the zip.
 
-The build is byte-reproducible — document and zip-member timestamps are pinned
-to a fixed epoch — so a rebuild on an unchanged corpus leaves the worktree
-clean. If `just build-excel` dirties the tree without an intended change,
-something has reintroduced a wall-clock stamp; fix that rather than committing
-the churn.
+`just check-excel` is the check CI runs. It compares the **formulas, cell values
+and named ranges** of the committed workbook against a fresh build, and names
+the first cells that differ. It deliberately does not compare the file's bytes:
+an `.xlsx` is a zip of XML, and its bytes depend on the openpyxl version and on
+the platform's deflate implementation, so a byte comparison reports differences
+that have nothing to do with the workbook. Formatting — fonts, fills, column
+widths — is cosmetic and is not compared either.
 
 Named-range addresses are derived from the layout at build time. Never hardcode
 them: a hardcoded address that drifts out of step produces a silently wrong

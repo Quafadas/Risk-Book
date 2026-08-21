@@ -19,24 +19,14 @@ overwhelmingly use, so it is worth showing a reader whether it agrees.
 
 from __future__ import annotations
 
+import argparse
 import csv
-import datetime
-import re
-import shutil
-import zipfile
+import sys
 from pathlib import Path
 
-from openpyxl import Workbook
+from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.workbook.defined_name import DefinedName
-
-# The workbook is a build artifact but it is committed, and CI compares a
-# rebuild against the committed bytes (spec SS 7.1). That only works if the
-# build is reproducible, so every timestamp in the container is pinned. The
-# epoch is arbitrary; the DOS time format zip uses cannot represent anything
-# before 1980.
-FIXED_TIMESTAMP = datetime.datetime(1980, 1, 1, 0, 0, 0)
-FIXED_ZIP_DATE = (1980, 1, 1, 0, 0, 0)
 
 ROOT = Path(__file__).resolve().parents[2]
 CSV_PATH = ROOT / "conformance" / "data" / "ylt-10k.csv"
@@ -49,37 +39,8 @@ YELLOW = PatternFill("solid", fgColor="FFFF00")     # key output
 NUM = "#,##0.000000"
 
 
-def normalise(path: Path) -> None:
-    """Repack the container so the build is byte-reproducible.
-
-    Two sources of wall-clock drift have to go, or a rebuild never matches the
-    committed workbook and the CI staleness check (spec SS 7.1) is noise:
-
-    * every zip entry carries an mtime;
-    * openpyxl rewrites `dcterms:modified` in docProps/core.xml during `save()`,
-      so pinning it on the Workbook beforehand has no effect.
-    """
-    stamp = FIXED_TIMESTAMP.strftime("%Y-%m-%dT%H:%M:%SZ")
-    tmp = path.with_suffix(".xlsx.tmp")
-    with zipfile.ZipFile(path) as src, zipfile.ZipFile(
-        tmp, "w", zipfile.ZIP_DEFLATED
-    ) as dst:
-        for name in sorted(src.namelist()):
-            payload = src.read(name)
-            if name == "docProps/core.xml":
-                payload = re.sub(
-                    rb"(<dcterms:(?:created|modified)[^>]*>)[^<]*(</dcterms:)",
-                    rb"\g<1>" + stamp.encode() + rb"\g<2>",
-                    payload,
-                )
-            info = zipfile.ZipInfo(name, date_time=FIXED_ZIP_DATE)
-            info.compress_type = zipfile.ZIP_DEFLATED
-            info.external_attr = 0o600 << 16
-            dst.writestr(info, payload)
-    shutil.move(tmp, path)
-
-
-def main() -> None:
+def build() -> Workbook:
+    """Construct the template workbook in memory."""
     with CSV_PATH.open() as fh:
         losses = [r["loss"] for r in csv.DictReader(fh)]
     n = len(losses)
@@ -165,19 +126,99 @@ def main() -> None:
     for name, ref in addr.items():
         wb.defined_names.add(DefinedName(name, attr_text=f"Calc!${ref[0]}${ref[1:]}"))
 
-    # Fixed document timestamps. The committed workbook is compared against a
-    # rebuild byte for byte (spec SS 7.1); openpyxl would otherwise stamp
-    # docProps/core.xml with the wall clock and make every comparison fail.
-    wb.properties.created = FIXED_TIMESTAMP
-    wb.properties.modified = FIXED_TIMESTAMP
     wb.properties.creator = "build_template.py"
-    wb.properties.lastModifiedBy = "build_template.py"
+    return wb
 
+
+# --- staleness check --------------------------------------------------------
+#
+# The committed workbook must match this builder (spec SS 7.1). It is NOT
+# compared byte for byte: an .xlsx is a zip of XML, and its bytes depend on the
+# openpyxl version and on the platform's deflate implementation, so a byte
+# comparison fails for reasons that have nothing to do with the workbook. What
+# matters is the implementation -- the formulas, the values and the named ranges
+# the harness binds to. Formatting is cosmetic and deliberately not compared.
+
+
+def content(wb: Workbook) -> dict:
+    """The parts of a workbook that make it an implementation."""
+    return {
+        "sheets": wb.sheetnames,
+        "cells": {
+            f"{ws.title}!{cell.coordinate}": cell.value
+            for ws in wb.worksheets
+            for row in ws.iter_rows()
+            for cell in row
+            if cell.value is not None
+        },
+        "names": {
+            name: str(wb.defined_names[name].attr_text)
+            for name in sorted(wb.defined_names)
+        },
+    }
+
+
+def differences(committed: dict, fresh: dict) -> list[str]:
+    """First few concrete differences, in reader-friendly terms."""
+    out: list[str] = []
+    if committed["sheets"] != fresh["sheets"]:
+        out.append(f"sheets: committed {committed['sheets']}, builder {fresh['sheets']}")
+
+    for key in sorted(set(committed["names"]) | set(fresh["names"])):
+        a, b = committed["names"].get(key), fresh["names"].get(key)
+        if a != b:
+            out.append(f"named range {key}: committed {a!r}, builder {b!r}")
+
+    ca, cb = committed["cells"], fresh["cells"]
+    for key in sorted(set(ca) | set(cb), key=lambda k: (k.split("!")[0], k)):
+        a, b = ca.get(key), cb.get(key)
+        if a != b:
+            out.append(f"{key}: committed {a!r}, builder {b!r}")
+            if len(out) > 20:
+                out.append("... further differences not listed")
+                return out
+    return out
+
+
+def check() -> int:
+    if not OUT.exists():
+        print(f"{OUT.relative_to(ROOT)} is missing; run without --check to build it",
+              file=sys.stderr)
+        return 1
+
+    committed = content(load_workbook(OUT))
+    fresh = content(build())
+    diffs = differences(committed, fresh)
+    if diffs:
+        print(f"{OUT.relative_to(ROOT)} does not match build_template.py:",
+              file=sys.stderr)
+        for d in diffs:
+            print(f"  {d}", file=sys.stderr)
+        print("Rebuild it with `just build-excel` and commit the result.",
+              file=sys.stderr)
+        return 1
+
+    print(f"{OUT.relative_to(ROOT)}: in sync with builder "
+          f"({len(fresh['cells'])} cells, {len(fresh['names'])} named ranges)")
+    return 0
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(prog="build_template")
+    ap.add_argument("--check", action="store_true",
+                    help="verify the committed workbook matches this builder, "
+                         "without writing it (spec SS 7.1)")
+    args = ap.parse_args()
+
+    if args.check:
+        return check()
+
+    wb = build()
     OUT.parent.mkdir(parents=True, exist_ok=True)
     wb.save(OUT)
-    normalise(OUT)
-    print(f"wrote {OUT.relative_to(ROOT)} ({n} rows, {n} helper formulas)")
+    print(f"wrote {OUT.relative_to(ROOT)}")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

@@ -21,7 +21,7 @@ test-scala: bootstrap-scala
 test-julia:
     julia --project=impl/julia -e 'using Pkg; Pkg.instantiate(); Pkg.test()'
 
-test-excel: build-excel
+test-excel: check-excel
     uv run --project impl/excel python impl/excel/runner.py
 
 # Mill ships as a per-version launcher script, which is gitignored rather than
@@ -37,9 +37,14 @@ bootstrap-scala:
         chmod +x mill
     fi
 
-# The workbook is a build artifact of build_template.py, but it is committed --
-# CI checks the two agree (spec SS 7.1). The build is byte-reproducible, so a
-# rebuild on an unchanged corpus leaves the worktree clean.
+# Verify the committed workbook still matches its builder (spec SS 7.1). Compares
+# formulas, values and named ranges -- not archive bytes, which vary with the
+# openpyxl version and the platform's zlib.
+check-excel:
+    uv run --project impl/excel python impl/excel/build_template.py --check
+
+# Rewrite the committed workbook. Only needed when you have changed the builder;
+# commit the result.
 build-excel:
     uv run --project impl/excel python impl/excel/build_template.py
 
