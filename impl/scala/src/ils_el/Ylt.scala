@@ -3,15 +3,12 @@ package ils_el
 import java.security.MessageDigest
 import vecxt.all.sumSIMD
 
-/** Expected loss over a year loss table (spec SS 3.2, SS 4.1). */
+/** Expected loss over a year loss table (spec SS 3.1). */
 object Ylt:
 
   def expectedLoss(losses: Array[Double], nYears: Int): Double =
     require(nYears > 0, "nYears must be positive")
     losses.sumSIMD / nYears
-
-  def expectedLoss(losses: Array[Double]): Double =
-    expectedLoss(losses, losses.length)
 
   /** Reads a two-column YLT, verifying the digest when one is supplied. */
   def readYlt(path: os.Path, expectedSha256: Option[String] = None): Array[Double] =

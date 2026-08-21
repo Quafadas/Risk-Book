@@ -3,7 +3,7 @@ name = "ils-el-python"
 version = "1.0.0"
 description = "Reference implementation of the ILS risk conformance spec"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = ["numpy>=2"]
 
 [project.scripts]
 ils-el = "ils_el.cli:main"

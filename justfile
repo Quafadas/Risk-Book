@@ -49,7 +49,7 @@ build-excel:
     uv run --project impl/excel python impl/excel/build_template.py
 
 # Regenerate the corpus and its golden values. Changing expected output, or
-# widening a tolerance, is a breaking change to the spec (SS 6.5).
+# widening a tolerance, is a breaking change to the spec (SS 4.5).
 regen:
     uv run --with numpy python tools/generate_data.py
 

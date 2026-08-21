@@ -1,4 +1,4 @@
-"""Black-box runner: emits the result envelope defined in spec SS 6.3."""
+"""Black-box runner: emits the result envelope defined in spec SS 4.3."""
 
 from __future__ import annotations
 

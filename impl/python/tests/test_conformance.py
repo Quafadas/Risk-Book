@@ -2,7 +2,7 @@
 
 Comparison logic is deliberately thin: the tolerance lives in the case data, so
 no implementation can quietly adopt its own idea of 'close enough'
-(spec SS 6.1).
+(spec SS 4.1).
 """
 
 from __future__ import annotations
@@ -50,7 +50,7 @@ def test_row_count_matches_declaration(case_path: Path) -> None:
 
 @pytest.mark.parametrize("case_path", CASES, ids=lambda p: p.stem)
 def test_tolerance_catches_a_real_error(case_path: Path) -> None:
-    """The tolerance must still fail a wrong answer (spec SS 6.1).
+    """The tolerance must still fail a wrong answer (spec SS 4.1).
 
     Dropping one loss-bearing year is the cheapest realistic mistake -- an
     off-by-one on the row range. If this ever passes, the tolerance has stopped
@@ -58,9 +58,9 @@ def test_tolerance_catches_a_real_error(case_path: Path) -> None:
     """
     case, losses = load(case_path)
     expected = float(Decimal(case["expected"]["exact_decimal"]))
-    dropped = losses.copy()
-    dropped.remove(min(x for x in losses if x > 0))
-    actual = expected_loss(dropped, case["operation"]["n_years"])
+    kept = list(losses)
+    kept.remove(min(x for x in kept if x > 0))
+    actual = expected_loss(kept, case["operation"]["n_years"])
     assert relative_error(actual, expected) > case["tolerance"]["rel"]
 
 

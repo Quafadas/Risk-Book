@@ -3,10 +3,14 @@ uuid = "3f6c1a54-9d2e-4b87-a1f0-6e5c9b2d4a71"
 authors = ["ILS Conformance Suite contributors"]
 version = "1.0.0"
 
-# SHA backs the corpus digest check in src/ILSEL.jl. JSON3 backs the black-box
-# runner in bin/run.jl, which is executed with --project=impl/julia and so
-# resolves against this environment.
+# SHA backs the corpus digest check in src/ILSEL.jl and DelimitedFiles the
+# column read. JSON3 backs the black-box runner in bin/run.jl, which is executed
+# with --project=impl/julia and so resolves against this environment.
+#
+# DelimitedFiles is a stdlib but is no longer loaded by default (Julia 1.9+), so
+# it has to be declared like any other dependency.
 [deps]
+DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
 JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
 SHA = "ea8e919c-243c-51af-8825-aaa63cd721ce"
 

@@ -4,14 +4,14 @@
 
 1. Write the input table into `conformance/data/`.
 2. Derive the golden value by a process **independent of every implementation in
-   this repository** (spec § 6.1). Integer or rational arithmetic over the
+   this repository** (spec § 4.1). Integer or rational arithmetic over the
    decimal text is the usual route. Do not run the Python implementation and
    record its output — that makes this a reference implementation with ports,
    not a specification.
 3. Write the case JSON. `rationale` is mandatory and must say what the case is
    trying to break; six months from now the id alone will not tell you whether
    an edge case was deliberate or a typo.
-4. Choose a relative tolerance (spec § 6.1). Wide enough that the difference
+4. Choose a relative tolerance (spec § 4.1). Wide enough that the difference
    between one language's standard sum and another's is not a failure, narrow
    enough that a real error still is. `el/mean-ylt-10k` uses `1e-9`: the four
    implementations sit within `5e-15` of the golden value, and dropping a single
@@ -25,7 +25,7 @@
 ## Changing an expected value or a tolerance
 
 Either is a **breaking change to the specification** and needs a major version
-bump (spec § 6.5). Golden values and their tolerances are the compatibility
+bump (spec § 4.5). Golden values and their tolerances are the compatibility
 surface. If an implementation disagrees with a golden value, the first
 hypothesis is that the implementation is wrong; the second is that the spec is
 ambiguous and needs a new section, not an edited number.
@@ -36,11 +36,11 @@ really was too tight, say so in the commit and bump the version.
 
 ## Adding an implementation
 
-It must depend on nothing in `impl/` but the corpus (spec § 6.2). It must read
+It must depend on nothing in `impl/` but the corpus (spec § 4.2). It must read
 tolerances from the case file rather than hardcoding them. It keeps its own
 build tool — do not attempt to unify the builds.
 
-Use the platform's standard arithmetic (spec § 3.2). Do not hand-roll a
+Use the platform's own array arithmetic (spec § 3.1). Do not hand-roll a
 compensated accumulator to make your column match another implementation
 exactly — the point is to show what the idiomatic code in each language does,
 and the tolerance is there to absorb the difference.

@@ -1,6 +1,6 @@
 {
   "id": "el/mean-ylt-10k",
-  "spec": "4.1",
+  "spec": "3.1",
   "since": "1.0",
   "rationale": "Smallest possible end-to-end case: parse a 10k-row YLT and reduce it to a single number. Exists to exercise the whole path -- read decimal text, sum a column, divide by a declared period count -- before any layer structure is put on top of it.",
   "input": {

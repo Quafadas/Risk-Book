@@ -47,8 +47,8 @@ period boundary.
 
 **Return period** — the reciprocal of an annual exceedance probability. A
 "1-in-250 year loss" is the loss with a 0.4% annual exceedance probability. On a
-finite simulation the value depends on the quantile convention (spec § 3.4,
-reserved for v1.1), and at 10,000 years the 1-in-250 sits at index 40 — close
+finite simulation the value depends on the quantile convention (not yet
+specified; reserved for v1.1), and at 10,000 years the 1-in-250 sits at index 40 — close
 enough to the tail that interpolation choices are visible.
 
 **Year Loss Table (YLT)** — simulated years, each carrying total loss to the

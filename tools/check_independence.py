@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Enforce spec SS 6.2: implementations share the corpus and nothing else.
+"""Enforce spec SS 4.2: implementations share the corpus and nothing else.
 
 The Excel harness is written in Python, which makes it one careless import away
 from becoming a wrapper around the reference implementation. Agreement between
@@ -29,12 +29,12 @@ def main() -> int:
             failures.append(f"{path.relative_to(ROOT)}:{line}: {m.group(0).strip()}")
 
     if failures:
-        print("Implementation independence violated (spec SS 6.2):", file=sys.stderr)
+        print("Implementation independence violated (spec SS 4.2):", file=sys.stderr)
         for f in failures:
             print(f"  {f}", file=sys.stderr)
         print(
             "\nThe Excel harness drives a spreadsheet; it must not borrow the\n"
-            "reference implementation. See spec SS 6.2.",
+            "reference implementation. See spec SS 4.2.",
             file=sys.stderr,
         )
         return 1

@@ -1,5 +1,5 @@
 # Native harness over the shared corpus. Tolerances come from the case data,
-# never from this file (spec § 6.1).
+# never from this file (spec § 4.1).
 
 using ILSEL
 using JSON3
@@ -36,7 +36,7 @@ relative_error(actual, expected) = abs(actual - expected) / abs(expected)
 
         @testset "$(c.id): tolerance catches a real error" begin
             # Dropping one loss-bearing year is the cheapest realistic mistake,
-            # an off-by-one on the row range. It must fail (spec § 6.1).
+            # an off-by-one on the row range. It must fail (spec § 4.1).
             losses = read_ylt(joinpath(ROOT, "conformance", c.input.file))
             smallest = minimum(filter(>(0.0), losses))
             dropped = deleteat!(copy(losses), findfirst(==(smallest), losses))

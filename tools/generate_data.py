@@ -8,7 +8,7 @@ any conformance implementation.
 The golden value is derived by EXACT INTEGER ARITHMETIC over the decimal text of
 the CSV. It is not produced by NumPy, or by any floating-point summation, so no
 implementation's rounding behaviour can become the standard by accident
-(spec SS 6.1).
+(spec SS 4.1).
 """
 
 from __future__ import annotations
@@ -68,7 +68,7 @@ def main() -> None:
 
     case = {
         "id": "el/mean-ylt-10k",
-        "spec": "4.1",
+        "spec": "3.1",
         "since": "1.0",
         "rationale": (
             "Smallest possible end-to-end case: parse a 10k-row YLT and reduce "
@@ -90,7 +90,7 @@ def main() -> None:
         # Wide enough to cover the difference between one standard summation
         # and another (measured: at most 5e-15 relative on this input), narrow
         # enough that a real error still fails -- dropping a single loss-bearing
-        # year moves the mean by 3e-7 relative (spec SS 6.1).
+        # year moves the mean by 3e-7 relative (spec SS 4.1).
         "tolerance": {"rel": 1e-9},
     }
     CASE.parent.mkdir(parents=True, exist_ok=True)

@@ -1,5 +1,5 @@
 #!/usr/bin/env julia
-# Black-box runner: emits the result envelope defined in spec § 6.3.
+# Black-box runner: emits the result envelope defined in spec § 4.3.
 
 using ILSEL
 using JSON3

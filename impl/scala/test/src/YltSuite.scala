@@ -1,7 +1,7 @@
 package ils_el
 
 /** Native harness over the shared corpus. Tolerances come from the case data,
-  * never from this file (spec SS 6.1).
+  * never from this file (spec SS 4.1).
   */
 class YltSuite extends munit.FunSuite:
 
@@ -33,7 +33,7 @@ class YltSuite extends munit.FunSuite:
 
     test(s"${c.id}: tolerance catches a real error"):
       // Dropping one loss-bearing year is the cheapest realistic mistake, an
-      // off-by-one on the row range. It must fail (spec SS 6.1).
+      // off-by-one on the row range. It must fail (spec SS 4.1).
       val losses = Ylt.readYlt(Case.dataPath(root, c))
       val smallest = losses.filter(_ > 0.0).min
       val dropped = losses.patch(losses.indexOf(smallest), Nil, 1)

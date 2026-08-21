@@ -9,7 +9,7 @@ Three strategies are computed side by side, because the interesting question is
 not whether a spreadsheet can average a column but whether the ways a modeller
 might do it agree (spec SS 7.3):
 
-  EL_SUM       =SUM(range)/n     -- the value under test (spec SS 3.2)
+  EL_SUM       =SUM(range)/n     -- the value under test (spec SS 3.1)
   EL_AVERAGE   =AVERAGE(range)   -- the obvious alternative
   EL_RUNNING   running total carried down a helper column
 
@@ -91,7 +91,7 @@ def build() -> Workbook:
         ("COUNT_ROWS", "calc", f"=COUNT(YLT!B2:B{last})", "Guards an off-by-one in the range"),
         ("S_FINAL", "calc", f"=YLT!C{last}", "Running total, final row"),
         ("Outputs", "head", None, None),
-        ("EL_SUM", "out", "={SUM_LOSSES}/{N_YEARS}", "Spec SS 4.1 -- the value under test"),
+        ("EL_SUM", "out", "={SUM_LOSSES}/{N_YEARS}", "Spec SS 3.1 -- the value under test"),
         ("EL_AVERAGE", "out", f"=AVERAGE(YLT!B2:B{last})", "AVERAGE(range)"),
         ("EL_RUNNING", "out", "={S_FINAL}/{N_YEARS}", "Reported: running-total column (SS 7.3)"),
     ]

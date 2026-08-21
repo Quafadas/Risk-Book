@@ -26,6 +26,19 @@ def spec_sections() -> set[str]:
     return set(re.findall(r"^###?\s+(\d+(?:\.\d+)?)\s", text, re.MULTILINE))
 
 
+def operations_prefix() -> str | None:
+    """The number of the top-level "Operations" section, e.g. "3." for `## 3.`.
+
+    Found by title rather than hardcoded. The operations section has been
+    renumbered once already, and a hardcoded number silently turns this check
+    from "every operation has a case" into "every subsection of whatever now
+    sits at that number has a case".
+    """
+    text = SPEC.read_text(encoding="utf-8")
+    m = re.search(r"^##\s+(\d+)\.\s+Operations\s*$", text, re.MULTILINE)
+    return f"{m.group(1)}." if m else None
+
+
 def main() -> int:
     errors: list[str] = []
     sections = spec_sections()
@@ -55,7 +68,7 @@ def main() -> int:
             if rows != case["input"]["rows"]:
                 errors.append(f"{cid}: declares {case['input']['rows']} rows, file has {rows}")
 
-        # The golden value must be a finite decimal number (spec SS 6.1).
+        # The golden value must be a finite decimal number (spec SS 4.1).
         try:
             golden = Decimal(case["expected"]["exact_decimal"])
         except InvalidOperation:
@@ -64,7 +77,7 @@ def main() -> int:
             if not golden.is_finite():
                 errors.append(f"{cid}: exact_decimal is not finite")
 
-        # A tolerance that admits everything tests nothing (spec SS 6.1).
+        # A tolerance that admits everything tests nothing (spec SS 4.1).
         if not 0 < case["tolerance"]["rel"] < 1e-3:
             errors.append(f"{cid}: tolerance.rel {case['tolerance']['rel']} outside (0, 1e-3)")
 
@@ -72,18 +85,22 @@ def main() -> int:
             errors.append(f"{cid}: cites spec SS {case['spec']}, which does not exist")
 
         if len(case.get("rationale", "")) < 40:
-            errors.append(f"{cid}: rationale missing or too short (spec SS 6.4)")
+            errors.append(f"{cid}: rationale missing or too short (spec SS 4.4)")
 
-    # Every case declared, every declaration real (spec SS 6.4: no silent skips).
+    # Every case declared, every declaration real (spec SS 4.4: no silent skips).
     for missing in sorted(found - declared):
         errors.append(f"{missing}: present in corpus but absent from manifest.toml")
     for ghost in sorted(declared - found):
         errors.append(f"{ghost}: declared in manifest.toml but no such case")
 
     # Coverage: a normative operation section with no case is untested.
-    for sec in sorted(s for s in sections if s.startswith("4.")):
-        if sec not in cited:
-            errors.append(f"spec SS {sec} has no case exercising it")
+    prefix = operations_prefix()
+    if prefix is None:
+        errors.append('spec has no "## N. Operations" section; coverage unchecked')
+    else:
+        for sec in sorted(s for s in sections if s.startswith(prefix)):
+            if sec not in cited:
+                errors.append(f"spec SS {sec} has no case exercising it")
 
     if errors:
         print("Corpus errors:", file=sys.stderr)

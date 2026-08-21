@@ -4,10 +4,10 @@
 Nothing here is hand-maintained. A hand-written list of which cases fail is
 wrong within a week; a generated one is wrong only if the generator is.
 
-Each implementation exposes a black-box runner emitting the spec SS 6.3 envelope.
+Each implementation exposes a black-box runner emitting the spec SS 4.3 envelope.
 This script invokes each, records what came back, and writes the scorecard and
 divergence report. A missing toolchain is reported as `not run`, never silently
-omitted (spec SS 6.4).
+omitted (spec SS 4.4).
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "conformance" / "manifest.toml"
 OUT = ROOT / "docs" / "results.md"
 
-# Black-box runners (spec SS 6.3), and the tool each needs on PATH.
+# Black-box runners (spec SS 4.3), and the tool each needs on PATH.
 RUNNERS = {
     "python": (["python3", "-c",
                 "import sys; sys.path.insert(0, 'impl/python/src'); "
@@ -68,7 +68,7 @@ def parse_envelope(payload: str) -> list[dict] | None:
     Tolerant of leading noise: a build tool or a language runtime may print a
     banner, a precompilation notice or a progress ticker onto the same stream
     the envelope is written to. Returns a list even for a single object, which
-    spec SS 6.3 permits.
+    spec SS 4.3 permits.
     """
     payload = payload.strip()
     start = min((i for i in (payload.find("["), payload.find("{")) if i >= 0), default=-1)

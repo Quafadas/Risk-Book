@@ -40,12 +40,12 @@
       "required": ["exact_decimal"],
       "additionalProperties": false,
       "properties": {
-        "exact_decimal": { "type": "string", "description": "The mathematically exact result, as decimal text (spec 6.1)" }
+        "exact_decimal": { "type": "string", "description": "The mathematically exact result, as decimal text (spec 4.1)" }
       }
     },
     "tolerance": {
       "type": "object",
-      "description": "Tolerance lives here, never in an implementation's test code (spec 6.1)",
+      "description": "Tolerance lives here, never in an implementation's test code (spec 4.1)",
       "required": ["rel"],
       "additionalProperties": false,
       "properties": {

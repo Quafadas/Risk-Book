@@ -3,7 +3,7 @@
 
 Writes case inputs into named ranges, recalculates, reads named outputs back.
 
-INDEPENDENCE (spec SS 6.2): this module must never import from impl/python. It
+INDEPENDENCE (spec SS 4.2): this module must never import from impl/python. It
 drives a spreadsheet; it does not compute expected loss. If it ever borrows the
 reference implementation, agreement between the Excel and Python columns stops
 meaning anything. CI enforces this -- see tools/check_independence.py.
@@ -120,8 +120,8 @@ def run_case(case_path: Path, *, cached: bool = False) -> dict:
                 "reason": f"template covers {outputs['COUNT_ROWS']} rows, "
                           f"case declares {case['input']['rows']}"}
 
-    # EL_SUM is the value under test (spec SS 3.2: =SUM(range) is the
-    # spreadsheet's standard summation). The other two are reported alongside it
+    # EL_SUM is the value under test (spec SS 3.1: =SUM(range) is the
+    # spreadsheet's summation). The other two are reported alongside it
     # so a reader can see whether the layout they use agrees (spec SS 7.3).
     value = float(outputs["EL_SUM"])
     expected = float(Decimal(case["expected"]["exact_decimal"]))

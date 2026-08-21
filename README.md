@@ -52,7 +52,7 @@ uv run --project impl/excel python impl/excel/runner.py   # needs LibreOffice
 **Tolerances live in the case data.** No implementation gets to hold its own view
 of "close enough", and no implementation is compared against another — every one
 is compared against the golden value. Widening a tolerance is a breaking change
-to the specification (§ 6.5), not a fix.
+to the specification (§ 4.5), not a fix.
 
 **Implementations are idiomatic, and may disagree.** In the context of simulation error, this disagreement should not be material.
 

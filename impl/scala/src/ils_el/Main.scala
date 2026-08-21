@@ -2,7 +2,7 @@ package ils_el
 
 import upickle.default.write
 
-/** Black-box runner: emits the result envelope defined in spec SS 6.3. */
+/** Black-box runner: emits the result envelope defined in spec SS 4.3. */
 object Main:
   @main def run(args: String*): Unit =
     val root = os.Path(sys.env.getOrElse("CONFORMANCE_ROOT", os.pwd.toString))

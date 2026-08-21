@@ -1,5 +1,5 @@
 # Conformance manifest. The scorecard and divergence report are generated from
-# this file plus measured results -- never hand-maintained (spec SS 6.4).
+# this file plus measured results -- never hand-maintained (spec SS 4.4).
 
 spec_version = "1.0"
 
@@ -29,7 +29,7 @@ run = "uv run --project impl/excel python impl/excel/runner.py"
 [cases."el/mean-ylt-10k"]
 spec = "4.1"
 since = "1.0"
-tolerance_rel = 1e-9          # spec SS 6.1 -- normative copy lives in the case file
+tolerance_rel = 1e-9          # spec SS 4.1 -- normative copy lives in the case file
 
 # Structural limits and known disagreements are declared, never skipped.
 # None at v1.0: all four implementations run this case and pass.
@@ -40,4 +40,4 @@ tolerance_rel = 1e-9          # spec SS 6.1 -- normative copy lives in the case 
 #   unsupported.excel = "1,048,576 row limit; see spec SS 7"
 #
 #   [cases."layer/indexation-circular"]
-#   xfail.excel = "requires iterative calculation; see spec SS 5.6"
+#   xfail.excel = "requires iterative calculation; see the indexation section"

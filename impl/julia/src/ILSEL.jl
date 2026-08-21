@@ -3,10 +3,10 @@
 
 Julia implementation of the ILS risk conformance spec, v1.0.
 
-Independent of `impl/python`: shares only the case corpus (spec § 6.2).
 """
 module ILSEL
 
+using DelimitedFiles: readdlm
 using SHA: sha256
 
 export expected_loss, read_ylt
@@ -16,10 +16,11 @@ const SPEC_VERSION = v"1.0.0"
 """
     expected_loss(losses, n_years = length(losses)) -> Float64
 
-Expected annual loss (spec § 4.1).
+Expected annual loss (spec § 3.1).
 
-The sum is `Base.sum` -- the standard facility, per § 3.2. Julia's is pairwise,
-so it will not match a left fold to the last bit; the case tolerance covers that.
+`Base.sum` is the array reduction -- Julia needs no array library, so this is
+already the idiomatic equivalent of NumPy's `sum`. It happens to be pairwise and
+exact on the v1.0 corpus; the case tolerance does not require that.
 """
 function expected_loss(losses, n_years::Integer = length(losses))::Float64
     n_years > 0 || throw(ArgumentError("n_years must be positive"))
@@ -29,7 +30,10 @@ end
 """
     read_ylt(path; expected_sha256 = nothing) -> Vector{Float64}
 
-Read a two-column YLT, verifying the digest when one is supplied.
+Read the loss column of a YLT, verifying the digest when one is supplied.
+
+The column is located by name from the header rather than by position, so a
+corpus file that grows a column does not silently shift the reading.
 """
 function read_ylt(path::AbstractString; expected_sha256::Union{Nothing,AbstractString} = nothing)
     raw = read(path)
@@ -41,12 +45,12 @@ function read_ylt(path::AbstractString; expected_sha256::Union{Nothing,AbstractS
         )
     end
 
-    lines = split(String(raw), '\n'; keepempty = false)
-    header = strip.(split(lines[1], ','))
-    col = findfirst(==("loss"), header)
-    col === nothing && error("YLT has no 'loss' column")
+    data, header = readdlm(IOBuffer(raw), ','; header = true)
+    names = strip.(string.(vec(header)))
+    col = findfirst(==("loss"), names)
+    col === nothing && error("YLT has no 'loss' column: $(names)")
 
-    return [parse(Float64, strip(split(l, ',')[col])) for l in lines[2:end]]
+    return Float64.(data[:, col])
 end
 
 end # module
